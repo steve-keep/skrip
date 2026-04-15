@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -18,12 +19,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.bitperfect.app.ui.DeviceList
 import com.bitperfect.app.ui.DiagnosticDashboard
+import com.bitperfect.core.engine.RipState
+import com.bitperfect.core.engine.RippingEngine
 import com.bitperfect.core.usb.UsbDeviceManager
 import com.bitperfect.driver.ScsiDriver
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var usbDeviceManager: UsbDeviceManager
     private val scsiDriver = ScsiDriver()
+    private val rippingEngine = RippingEngine(scsiDriver)
     private val ACTION_USB_PERMISSION = "com.bitperfect.app.USB_PERMISSION"
 
     private var devices by mutableStateOf(emptyList<UsbDevice>())
@@ -31,6 +36,7 @@ class MainActivity : ComponentActivity() {
     private var logs by mutableStateOf(listOf("App started"))
     private var inquiryData by mutableStateOf("N/A")
     private var capabilities by mutableStateOf(emptyList<String>())
+    private var ripState by mutableStateOf(RipState())
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -65,6 +71,12 @@ class MainActivity : ComponentActivity() {
 
         refreshDevices()
 
+        lifecycleScope.launch {
+            rippingEngine.ripState.collect {
+                ripState = it
+            }
+        }
+
         setContent {
             MaterialTheme {
                 Surface(
@@ -86,7 +98,11 @@ class MainActivity : ComponentActivity() {
                         DiagnosticDashboard(
                             inquiryData = inquiryData,
                             capabilities = capabilities,
-                            logs = logs
+                            ripState = ripState,
+                            logs = logs,
+                            onStartRip = {
+                                selectedDevice?.let { startRip(it) }
+                            }
                         )
                     }
                 }
@@ -103,6 +119,23 @@ class MainActivity : ComponentActivity() {
         logs = logs + message
     }
 
+    private data class UsbEndpoints(val endpointIn: Int, val endpointOut: Int)
+
+    private fun getEndpoints(device: UsbDevice): UsbEndpoints {
+        val iface = device.getInterface(0)
+        var endpointIn = 0x81
+        var endpointOut = 0x01
+        for (i in 0 until iface.endpointCount) {
+            val ep = iface.getEndpoint(i)
+            if (ep.direction == android.hardware.usb.UsbConstants.USB_DIR_IN) {
+                endpointIn = ep.address
+            } else {
+                endpointOut = ep.address
+            }
+        }
+        return UsbEndpoints(endpointIn, endpointOut)
+    }
+
     private fun runDiagnostics(device: UsbDevice) {
         selectedDevice = device
         addLog("Running diagnostics for ${device.deviceName}")
@@ -113,12 +146,22 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        val iface = device.getInterface(0)
+        if (!connection.claimInterface(iface, true)) {
+            addLog("Failed to claim interface")
+            connection.close()
+            return
+        }
+
         val fd = connection.fileDescriptor
         addLog("Device opened, fd: $fd")
 
+        val (endpointIn, endpointOut) = getEndpoints(device)
+        addLog("Endpoints: In=0x${Integer.toHexString(endpointIn)}, Out=0x${Integer.toHexString(endpointOut)}")
+
         // 1. INQUIRY
         val inquiryCmd = byteArrayOf(0x12, 0, 0, 0, 36, 0)
-        val inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36)
+        val inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
         if (inquiryResponse != null) {
             val vendor = String(inquiryResponse.sliceArray(8 until 16)).trim()
             val product = String(inquiryResponse.sliceArray(16 until 32)).trim()
@@ -131,7 +174,7 @@ class MainActivity : ComponentActivity() {
 
         // 2. MODE SENSE (C2 Support)
         val modeSenseCmd = byteArrayOf(0x5A, 0, 0x2A, 0, 0, 0, 0, 0, 30, 0)
-        val modeSenseResponse = scsiDriver.executeScsiCommand(fd, modeSenseCmd, 30)
+        val modeSenseResponse = scsiDriver.executeScsiCommand(fd, modeSenseCmd, 30, endpointIn, endpointOut)
         if (modeSenseResponse != null) {
             val c2Support = if (modeSenseResponse[10].toInt() and 0x01 != 0) "Supported" else "Not Supported"
             capabilities = listOf("C2 Error Pointers: $c2Support")
@@ -140,7 +183,35 @@ class MainActivity : ComponentActivity() {
             addLog("Mode Sense Failed")
         }
 
+        connection.releaseInterface(iface)
         connection.close()
+    }
+
+    private fun startRip(device: UsbDevice) {
+        val connection = usbDeviceManager.openDevice(device) ?: return
+
+        val iface = device.getInterface(0)
+        if (!connection.claimInterface(iface, true)) {
+            addLog("Failed to claim interface for ripping")
+            connection.close()
+            return
+        }
+
+        val fd = connection.fileDescriptor
+        val (endpointIn, endpointOut) = getEndpoints(device)
+
+        val outputDir = getExternalFilesDir(null)?.absolutePath ?: filesDir.absolutePath
+        val outputPath = "$outputDir/track1.flac"
+        addLog("Starting rip to $outputPath")
+
+        lifecycleScope.launch {
+            try {
+                rippingEngine.startBurstRip(fd, outputPath, endpointIn, endpointOut)
+            } finally {
+                connection.releaseInterface(iface)
+                connection.close()
+            }
+        }
     }
 
     override fun onDestroy() {
