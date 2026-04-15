@@ -63,7 +63,7 @@ The goal is to provide a mobile alternative to desktop tools like Exact Audio Co
 
 ### 5.1. File Output
 * **Format:** Lossless FLAC.
-* **Structure:** `/Music/BitPerfect/[Artist]/[Year] - [Album]/[Track] - [Title].flac`
+* **Structure:** `/Music/BitPerfect/[Artist]/[Album]/[Track] - [Title].flac`
 
 ### 5.2. Rip Log (`rip_log.txt`)
 A detailed log must be generated for every rip session, stored alongside the audio files.
