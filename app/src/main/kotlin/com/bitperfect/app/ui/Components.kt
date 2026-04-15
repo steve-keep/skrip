@@ -5,9 +5,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import android.hardware.usb.UsbDevice
+import com.bitperfect.core.engine.RipState
 
 @Composable
 fun DeviceList(
@@ -43,7 +45,9 @@ fun DeviceList(
 fun DiagnosticDashboard(
     inquiryData: String,
     capabilities: List<String>,
-    logs: List<String>
+    ripState: RipState,
+    logs: List<String>,
+    onStartRip: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Card(
@@ -62,6 +66,31 @@ fun DiagnosticDashboard(
             }
         }
 
+        if (ripState.isRunning || ripState.progress > 0) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "Ripping Status: ${ripState.status}", style = MaterialTheme.typography.titleMedium)
+                    LinearProgressIndicator(
+                        progress = { ripState.progress },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    )
+                    Text(text = "Track ${ripState.currentTrack}/${ripState.totalTracks}")
+                    Text(text = "Sector ${ripState.currentSector}/${ripState.totalSectors}")
+                }
+            }
+        } else {
+            Button(
+                onClick = onStartRip,
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp)
+            ) {
+                Text("Start Burst Rip")
+            }
+        }
+
         Text(
             text = "Live Log",
             style = MaterialTheme.typography.titleMedium,
@@ -77,7 +106,7 @@ fun DiagnosticDashboard(
             shape = MaterialTheme.shapes.medium
         ) {
             LazyColumn(modifier = Modifier.padding(8.dp)) {
-                items(logs) { log ->
+                items(logs.reversed()) { log ->
                     Text(
                         text = log,
                         style = MaterialTheme.typography.bodySmall,
