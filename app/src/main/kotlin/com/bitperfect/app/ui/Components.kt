@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.hardware.usb.UsbDevice
+import com.bitperfect.core.engine.BitPerfectDrive
 import com.bitperfect.core.engine.RipState
 
 @Composable
@@ -143,37 +144,42 @@ fun BitPerfectTextField(
 
 @Composable
 fun DeviceList(
-    devices: List<UsbDevice>,
-    onDeviceClick: (UsbDevice) -> Unit
+    devices: List<BitPerfectDrive>,
+    onDeviceClick: (BitPerfectDrive) -> Unit
 ) {
     Column {
+        Text(
+            text = "Select Drive",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(16.dp)
+        )
         if (devices.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No USB drives found", style = MaterialTheme.typography.bodyLarge)
+                Text("No drives found", style = MaterialTheme.typography.bodyLarge)
             }
         }
 
         LazyColumn {
-            items(devices) { device ->
+            items(devices) { drive ->
                 ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    onClick = { onDeviceClick(device) }
+                    onClick = { onDeviceClick(drive) }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = device.productName ?: "Unknown Drive",
+                            text = drive.name,
                             style = MaterialTheme.typography.titleLarge
                         )
                         Text(
-                            text = "${device.manufacturerName} (${device.vendorId}:${device.productId})",
+                            text = "${drive.manufacturer ?: "Unknown Manufacturer"} (${if (drive is BitPerfectDrive.Virtual) "Virtual" else "USB"})",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Path: ${device.deviceName}",
+                            text = "ID: ${drive.identifier}",
                             style = MaterialTheme.typography.labelSmall
                         )
                     }

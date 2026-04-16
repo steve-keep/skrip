@@ -51,22 +51,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.bitperfect.app.ui.DeviceList
 import com.bitperfect.app.ui.DiagnosticDashboard
+import com.bitperfect.app.ui.SettingsScreen
 import com.bitperfect.app.ui.theme.BitPerfectTheme
-import com.bitperfect.core.engine.DriveCapabilities
-import com.bitperfect.core.engine.RipState
-import com.bitperfect.core.engine.RippingEngine
+import com.bitperfect.core.engine.*
 import com.bitperfect.core.usb.UsbDeviceManager
+import com.bitperfect.core.utils.SettingsManager
 import com.bitperfect.driver.ScsiDriver
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var usbDeviceManager: UsbDeviceManager
+    private lateinit var settingsManager: SettingsManager
     private val scsiDriver = ScsiDriver()
+    private val virtualScsiDriver by lazy { VirtualScsiDriver(settingsManager.getSelectedTestCd()) }
     private val rippingEngine = RippingEngine(scsiDriver)
     private val ACTION_USB_PERMISSION = "com.bitperfect.app.USB_PERMISSION"
 
-    private var devices by mutableStateOf(emptyList<UsbDevice>())
-    private var selectedDevice by mutableStateOf<UsbDevice?>(null)
+    private var devices by mutableStateOf(emptyList<BitPerfectDrive>())
+    private var selectedDevice by mutableStateOf<BitPerfectDrive?>(null)
+    private var isShowingSettings by mutableStateOf(false)
     private var logs by mutableStateOf(listOf("App started"))
     private var inquiryData by mutableStateOf("N/A")
     private var capabilities by mutableStateOf(emptyList<String>())
@@ -83,7 +86,7 @@ class MainActivity : ComponentActivity() {
                         intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
                     }
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        device?.let { runDiagnostics(it) }
+                        device?.let { runDiagnostics(BitPerfectDrive.Physical(it)) }
                     } else {
                         addLog("Permission denied for device $device")
                     }
@@ -97,6 +100,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         usbDeviceManager = UsbDeviceManager(this)
+        settingsManager = SettingsManager(this)
 
         val filter = IntentFilter(ACTION_USB_PERMISSION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -143,19 +147,19 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     bottomBar = {
-                        if (!isExpanded) {
+                        if (!isExpanded && !isShowingSettings) {
                             NavigationBar {
                                 NavigationBarItem(
                                     icon = { Icon(Icons.Default.Home, contentDescription = null) },
                                     label = { Text("Home") },
-                                    selected = true,
-                                    onClick = { }
+                                    selected = !isShowingSettings,
+                                    onClick = { isShowingSettings = false }
                                 )
                                 NavigationBarItem(
                                     icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                                     label = { Text("Settings") },
-                                    selected = false,
-                                    onClick = { }
+                                    selected = isShowingSettings,
+                                    onClick = { isShowingSettings = true }
                                 )
                                 NavigationBarItem(
                                     icon = { Icon(Icons.Default.Info, contentDescription = null) },
@@ -167,35 +171,46 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { innerPadding ->
-                    Row(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-                        if (isExpanded) {
-                            NavigationRail(
-                                modifier = Modifier.fillMaxHeight()
-                            ) {
-                                NavigationRailItem(
-                                    icon = { Icon(Icons.Default.Home, contentDescription = null) },
-                                    label = { Text("Home") },
-                                    selected = true,
-                                    onClick = { }
-                                )
-                                NavigationRailItem(
-                                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                                    label = { Text("Settings") },
-                                    selected = false,
-                                    onClick = { }
-                                )
-                                NavigationRailItem(
-                                    icon = { Icon(Icons.Default.Info, contentDescription = null) },
-                                    label = { Text("About") },
-                                    selected = false,
-                                    onClick = { }
-                                )
-                            }
+                    if (isShowingSettings) {
+                        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                            SettingsScreen(
+                                settingsManager = settingsManager,
+                                onBack = {
+                                    isShowingSettings = false
+                                    refreshDevices()
+                                }
+                            )
                         }
+                    } else {
+                        Row(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                            if (isExpanded) {
+                                NavigationRail(
+                                    modifier = Modifier.fillMaxHeight()
+                                ) {
+                                    NavigationRailItem(
+                                        icon = { Icon(Icons.Default.Home, contentDescription = null) },
+                                        label = { Text("Home") },
+                                        selected = !isShowingSettings,
+                                        onClick = { isShowingSettings = false }
+                                    )
+                                    NavigationRailItem(
+                                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                                        label = { Text("Settings") },
+                                        selected = isShowingSettings,
+                                        onClick = { isShowingSettings = true }
+                                    )
+                                    NavigationRailItem(
+                                        icon = { Icon(Icons.Default.Info, contentDescription = null) },
+                                        label = { Text("About") },
+                                        selected = false,
+                                        onClick = { }
+                                    )
+                                }
+                            }
 
-                        Box(modifier = Modifier.weight(1f).safeDrawingPadding()) {
-                            AnimatedContent(
-                                targetState = selectedDevice,
+                            Box(modifier = Modifier.weight(1f).safeDrawingPadding()) {
+                                AnimatedContent(
+                                    targetState = selectedDevice,
                                 transitionSpec = {
                                     if (targetState != null) {
                                         (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
@@ -205,29 +220,37 @@ class MainActivity : ComponentActivity() {
                                             slideOutHorizontally { width -> width } + fadeOut())
                                     }.using(SizeTransform(clip = false))
                                 },
-                                label = "ScreenTransition"
-                            ) { targetDevice ->
-                                if (targetDevice == null) {
-                                    DeviceList(devices = devices, onDeviceClick = { device ->
-                                        if (usbDeviceManager.hasPermission(device)) {
-                                            runDiagnostics(device)
-                                        } else {
-                                            val permissionIntent = PendingIntent.getBroadcast(
-                                                this@MainActivity, 0, Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_IMMUTABLE
-                                            )
-                                            usbDeviceManager.requestPermission(device, permissionIntent)
-                                        }
-                                    })
-                                } else {
-                                    DiagnosticDashboard(
-                                        inquiryData = inquiryData,
-                                        capabilities = capabilities,
-                                        ripState = ripState,
-                                        logs = logs,
-                                        onStartRip = {
-                                            selectedDevice?.let { startRip(it) }
-                                        }
-                                    )
+                                    label = "ScreenTransition"
+                                ) { targetDevice ->
+                                    if (targetDevice == null) {
+                                        DeviceList(devices = devices, onDeviceClick = { drive ->
+                                            when (drive) {
+                                                is BitPerfectDrive.Physical -> {
+                                                    if (usbDeviceManager.hasPermission(drive.device)) {
+                                                        runDiagnostics(drive)
+                                                    } else {
+                                                        val permissionIntent = PendingIntent.getBroadcast(
+                                                            this@MainActivity, 0, Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_IMMUTABLE
+                                                        )
+                                                        usbDeviceManager.requestPermission(drive.device, permissionIntent)
+                                                    }
+                                                }
+                                                is BitPerfectDrive.Virtual -> {
+                                                    runDiagnostics(drive)
+                                                }
+                                            }
+                                        })
+                                    } else {
+                                        DiagnosticDashboard(
+                                            inquiryData = inquiryData,
+                                            capabilities = capabilities,
+                                            ripState = ripState,
+                                            logs = logs,
+                                            onStartRip = {
+                                                selectedDevice?.let { startRip(it) }
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -238,8 +261,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshDevices() {
-        devices = usbDeviceManager.getCompatibleDevices()
-        addLog("Found ${devices.size} compatible devices")
+        val physicalDevices = usbDeviceManager.getCompatibleDevices().map { BitPerfectDrive.Physical(it) }
+        val virtualDevices = if (settingsManager.isVirtualDriveEnabled) {
+            listOf(BitPerfectDrive.Virtual(0, "BITPERF", "VIRTUAL DRIVE"))
+        } else {
+            emptyList()
+        }
+        devices = physicalDevices + virtualDevices
+        addLog("Found ${devices.size} compatible devices (${physicalDevices.size} USB, ${virtualDevices.size} Virtual)")
     }
 
     private fun addLog(message: String) {
@@ -263,32 +292,57 @@ class MainActivity : ComponentActivity() {
         return UsbEndpoints(endpointIn, endpointOut)
     }
 
-    private fun runDiagnostics(device: UsbDevice) {
-        selectedDevice = device
-        addLog("Running diagnostics for ${device.deviceName}")
+    private fun runDiagnostics(drive: BitPerfectDrive) {
+        selectedDevice = drive
+        addLog("Running diagnostics for ${drive.name}")
 
-        val connection = usbDeviceManager.openDevice(device)
-        if (connection == null) {
-            addLog("Failed to open device connection")
-            return
+        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
+            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
+            virtualScsiDriver
+        } else {
+            scsiDriver
         }
 
-        val iface = device.getInterface(0)
-        if (!connection.claimInterface(iface, true)) {
-            addLog("Failed to claim interface")
-            connection.close()
-            return
+        if (drive is BitPerfectDrive.Physical) {
+            val device = drive.device
+            val connection = usbDeviceManager.openDevice(device)
+            if (connection == null) {
+                addLog("Failed to open device connection")
+                return
+            }
+
+            try {
+                val iface = device.getInterface(0)
+                if (!connection.claimInterface(iface, true)) {
+                    addLog("Failed to claim interface")
+                    return
+                }
+
+                try {
+                    val fd = connection.fileDescriptor
+                    val endpoints = getEndpoints(device)
+                    val endpointIn = endpoints.endpointIn
+                    val endpointOut = endpoints.endpointOut
+                    addLog("Driver: ${driverToUse.getDriverVersion()}, fd: $fd")
+
+                    performDiagnostics(driverToUse, fd, endpointIn, endpointOut)
+                } finally {
+                    connection.releaseInterface(iface)
+                }
+            } finally {
+                connection.close()
+            }
+        } else {
+            // Virtual Drive
+            addLog("Driver: ${driverToUse.getDriverVersion()}, fd: 999")
+            performDiagnostics(driverToUse, 999, 0x81, 0x01)
         }
+    }
 
-        val fd = connection.fileDescriptor
-        addLog("Device opened, fd: $fd")
-
-        val (endpointIn, endpointOut) = getEndpoints(device)
-        addLog("Endpoints: In=0x${Integer.toHexString(endpointIn)}, Out=0x${Integer.toHexString(endpointOut)}")
-
+    private fun performDiagnostics(driver: com.bitperfect.driver.IScsiDriver, fd: Int, endpointIn: Int, endpointOut: Int) {
         // 1. INQUIRY
         val inquiryCmd = byteArrayOf(0x12, 0, 0, 0, 36, 0)
-        val inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
+        val inquiryResponse = driver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
         if (inquiryResponse != null) {
             val vendor = String(inquiryResponse.sliceArray(8 until 16)).trim()
             val product = String(inquiryResponse.sliceArray(16 until 32)).trim()
@@ -301,7 +355,7 @@ class MainActivity : ComponentActivity() {
 
         // 2. MODE SENSE (C2 Support)
         val modeSenseCmd = byteArrayOf(0x5A, 0, 0x2A, 0, 0, 0, 0, 0, 30, 0)
-        val modeSenseResponse = scsiDriver.executeScsiCommand(fd, modeSenseCmd, 30, endpointIn, endpointOut)
+        val modeSenseResponse = driver.executeScsiCommand(fd, modeSenseCmd, 30, endpointIn, endpointOut)
         if (modeSenseResponse != null) {
             val c2Support = if (modeSenseResponse[10].toInt() and 0x01 != 0) "Supported" else "Not Supported"
             capabilities = listOf("C2 Error Pointers: $c2Support")
@@ -309,23 +363,15 @@ class MainActivity : ComponentActivity() {
         } else {
             addLog("Mode Sense Failed")
         }
-
-        connection.releaseInterface(iface)
-        connection.close()
     }
 
-    private fun startRip(device: UsbDevice) {
-        val connection = usbDeviceManager.openDevice(device) ?: return
-
-        val iface = device.getInterface(0)
-        if (!connection.claimInterface(iface, true)) {
-            addLog("Failed to claim interface for ripping")
-            connection.close()
-            return
+    private fun startRip(drive: BitPerfectDrive) {
+        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
+            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
+            virtualScsiDriver
+        } else {
+            scsiDriver
         }
-
-        val fd = connection.fileDescriptor
-        val (endpointIn, endpointOut) = getEndpoints(device)
 
         val outputDir = getExternalFilesDir(null)?.absolutePath ?: filesDir.absolutePath
         addLog("Starting full rip to $outputDir")
@@ -336,11 +382,29 @@ class MainActivity : ComponentActivity() {
         )
 
         lifecycleScope.launch {
-            try {
-                rippingEngine.fullRip(fd, outputDir, inquiryData, driveCapabilities, endpointIn, endpointOut)
-            } finally {
-                connection.releaseInterface(iface)
-                connection.close()
+            if (drive is BitPerfectDrive.Physical) {
+                val device = drive.device
+                val connection = usbDeviceManager.openDevice(device) ?: return@launch
+                try {
+                    val iface = device.getInterface(0)
+                    if (!connection.claimInterface(iface, true)) {
+                        addLog("Failed to claim interface for ripping")
+                        return@launch
+                    }
+
+                    try {
+                        val fd = connection.fileDescriptor
+                        val (endpointIn, endpointOut) = getEndpoints(device)
+                        rippingEngine.fullRip(fd, outputDir, inquiryData, driveCapabilities, driverToUse, endpointIn, endpointOut)
+                    } finally {
+                        connection.releaseInterface(iface)
+                    }
+                } finally {
+                    connection.close()
+                }
+            } else {
+                // Virtual Drive
+                rippingEngine.fullRip(999, outputDir, inquiryData, driveCapabilities, driverToUse)
             }
         }
     }
