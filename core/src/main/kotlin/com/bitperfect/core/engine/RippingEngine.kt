@@ -25,7 +25,8 @@ data class RipState(
     val progress: Float = 0f,
     val status: String = "Idle",
     val reReads: Int = 0,
-    val errorCount: Int = 0
+    val errorCount: Int = 0,
+    val driveStatus: String = "No Drive"
 )
 
 data class DriveCapabilities(
@@ -453,6 +454,42 @@ class RippingEngine(
             val file = File(fullPath)
             file.parentFile?.mkdirs()
             FileOutputStream(file)
+        }
+    }
+
+    suspend fun pollDriveStatus(
+        fd: Int,
+        scsiDriver: IScsiDriver,
+        endpointIn: Int,
+        endpointOut: Int
+    ) = withContext(Dispatchers.IO) {
+        if (_ripState.value.isRunning) return@withContext
+
+        // TEST UNIT READY (0x00)
+        val turCmd = byteArrayOf(0, 0, 0, 0, 0, 0)
+        val response = scsiDriver.executeScsiCommand(fd, turCmd, 0, endpointIn, endpointOut)
+
+        if (response != null) {
+            _ripState.value = _ripState.value.copy(driveStatus = "Ready")
+        } else {
+            // CHECK CONDITION -> REQUEST SENSE (0x03)
+            val senseCmd = byteArrayOf(0x03, 0, 0, 0, 18, 0)
+            val senseData = scsiDriver.executeScsiCommand(fd, senseCmd, 18, endpointIn, endpointOut)
+
+            if (senseData != null && senseData.size >= 13) {
+                val senseKey = senseData[2].toInt() and 0x0F
+                val asc = senseData[12].toInt() and 0xFF
+
+                val status = when {
+                    senseKey == 0x02 && asc == 0x3A -> "No Disc / Tray Open"
+                    senseKey == 0x02 && asc == 0x04 -> "Spinning Up"
+                    senseKey == 0x02 -> "Not Ready"
+                    else -> "Error (Key: $senseKey, ASC: $asc)"
+                }
+                _ripState.value = _ripState.value.copy(driveStatus = status)
+            } else {
+                _ripState.value = _ripState.value.copy(driveStatus = "Communication Error")
+            }
         }
     }
 

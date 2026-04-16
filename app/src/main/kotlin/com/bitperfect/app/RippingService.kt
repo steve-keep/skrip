@@ -102,6 +102,15 @@ class RippingService : Service() {
         notificationManager.notify(NOTIFICATION_ID, createNotification(state))
     }
 
+    suspend fun pollStatus(
+        fd: Int,
+        driverToUse: com.bitperfect.driver.IScsiDriver,
+        endpointIn: Int,
+        endpointOut: Int
+    ) {
+        rippingEngine.pollDriveStatus(fd, driverToUse, endpointIn, endpointOut)
+    }
+
     fun startRip(
         fd: Int,
         basePath: String,

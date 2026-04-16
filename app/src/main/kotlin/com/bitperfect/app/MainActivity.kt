@@ -72,6 +72,7 @@ class MainActivity : ComponentActivity() {
     private val virtualScsiDriver by lazy { VirtualScsiDriver(settingsManager.getSelectedTestCd()) }
     private var rippingService: RippingService? = null
     private var isBound = false
+    private var pollingJob: kotlinx.coroutines.Job? = null
     private val ACTION_USB_PERMISSION = "com.bitperfect.app.USB_PERMISSION"
 
     private var devices by mutableStateOf(emptyList<BitPerfectDrive>())
@@ -91,6 +92,11 @@ class MainActivity : ComponentActivity() {
             lifecycleScope.launch {
                 rippingService?.rippingEngine?.ripState?.collect {
                     ripState = it
+                    if (it.isRunning) {
+                        stopPolling()
+                    } else if (selectedDevice != null && pollingJob == null) {
+                        startPolling(selectedDevice!!)
+                    }
                 }
             }
         }
@@ -103,19 +109,24 @@ class MainActivity : ComponentActivity() {
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (ACTION_USB_PERMISSION == intent.action) {
-                synchronized(this) {
-                    val device: UsbDevice? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+            when (intent.action) {
+                ACTION_USB_PERMISSION -> {
+                    synchronized(this) {
+                        val device: UsbDevice? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                        }
+                        if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                            device?.let { runDiagnostics(BitPerfectDrive.Physical(it)) }
+                        } else {
+                            addLog("Permission denied for device $device")
+                        }
                     }
-                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        device?.let { runDiagnostics(BitPerfectDrive.Physical(it)) }
-                    } else {
-                        addLog("Permission denied for device $device")
-                    }
+                }
+                UsbManager.ACTION_USB_DEVICE_ATTACHED, UsbManager.ACTION_USB_DEVICE_DETACHED -> {
+                    refreshDevices()
                 }
             }
         }
@@ -133,9 +144,12 @@ class MainActivity : ComponentActivity() {
         startService(serviceIntent)
         bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
 
-        val filter = IntentFilter(ACTION_USB_PERMISSION)
+        val filter = IntentFilter(ACTION_USB_PERMISSION).apply {
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(usbReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(usbReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             registerReceiver(usbReceiver, filter)
         }
@@ -170,7 +184,10 @@ class MainActivity : ComponentActivity() {
                             },
                             navigationIcon = {
                                 if (selectedDevice != null) {
-                                    IconButton(onClick = { selectedDevice = null }) {
+                                    IconButton(onClick = {
+                                        stopPolling()
+                                        selectedDevice = null
+                                    }) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                             contentDescription = "Back"
@@ -337,8 +354,61 @@ class MainActivity : ComponentActivity() {
         return UsbEndpoints(endpointIn, endpointOut)
     }
 
+    private fun startPolling(drive: BitPerfectDrive) {
+        if (pollingJob != null) return
+
+        pollingJob = lifecycleScope.launch {
+            while (true) {
+                if (ripState.isRunning) {
+                    stopPolling()
+                    break
+                }
+
+                val driverToUse = if (drive is BitPerfectDrive.Virtual) {
+                    virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
+                    virtualScsiDriver
+                } else {
+                    scsiDriver
+                }
+
+                if (drive is BitPerfectDrive.Physical) {
+                    val device = drive.device
+                    val connection = usbDeviceManager.openDevice(device)
+                    if (connection != null) {
+                        try {
+                            val iface = device.getInterface(0)
+                            if (connection.claimInterface(iface, true)) {
+                                try {
+                                    val fd = connection.fileDescriptor
+                                    val endpoints = getEndpoints(device)
+                                    rippingService?.pollStatus(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
+                                } catch (e: Exception) {
+                                    addLog("Polling error: ${e.message}")
+                                } finally {
+                                    connection.releaseInterface(iface)
+                                }
+                            }
+                        } finally {
+                            connection.close()
+                        }
+                    }
+                } else {
+                    rippingService?.pollStatus(999, driverToUse, 0x81, 0x01)
+                }
+
+                kotlinx.coroutines.delay(2000)
+            }
+        }
+    }
+
+    private fun stopPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
+    }
+
     private fun runDiagnostics(drive: BitPerfectDrive) {
         selectedDevice = drive
+        startPolling(drive)
         addLog("Running diagnostics for ${drive.name}")
 
         val driverToUse = if (drive is BitPerfectDrive.Virtual) {
