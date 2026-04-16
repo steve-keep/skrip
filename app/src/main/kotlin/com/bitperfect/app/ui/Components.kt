@@ -155,7 +155,7 @@ fun DeviceList(
         )
         if (devices.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No drives found", style = MaterialTheme.typography.bodyLarge)
+                Text("Connect a USB CD drive", style = MaterialTheme.typography.bodyLarge)
             }
         }
 
@@ -213,6 +213,17 @@ fun DiagnosticDashboard(
                 capabilities.forEach { capability ->
                     Text(text = "• $capability", style = MaterialTheme.typography.bodyMedium)
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = "Drive Status", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = ripState.driveStatus,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = when (ripState.driveStatus) {
+                        "Ready" -> MaterialTheme.colorScheme.primary
+                        "No Disc / Tray Open" -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
+                )
             }
         }
 

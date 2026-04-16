@@ -28,8 +28,12 @@ class UsbDeviceManager(private val context: Context) {
             val usbInterface = device.getInterface(i)
             Log.d("UsbDeviceManager", "  Interface $i: Class: ${usbInterface.interfaceClass}, Subclass: ${usbInterface.interfaceSubclass}")
             if (usbInterface.interfaceClass == UsbConstants.USB_CLASS_MASS_STORAGE) {
-                // We could be more specific here (Subclass 0x02, 0x05, 0x06 for CD-ROMs)
-                return true
+                // SCSI (0x02), MMC/ATAPI (0x05), and MMC-2 (0x06) are typical for CD drives
+                if (usbInterface.interfaceSubclass == 0x02 ||
+                    usbInterface.interfaceSubclass == 0x05 ||
+                    usbInterface.interfaceSubclass == 0x06) {
+                    return true
+                }
             }
         }
         return false

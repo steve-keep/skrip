@@ -13,7 +13,7 @@
 ---
 
 ### Story 1.1 — Enumerate connected USB devices
-- [ ] **Done**
+- [x] **Done**
 
 **As a** user who has plugged in a USB CD drive,
 **I want** the app to automatically detect it when it is connected,
@@ -89,7 +89,7 @@
 ---
 
 ### Story 2.1 — Poll drive ready status
-- [ ] **Done**
+- [x] **Done**
 
 **As a** user,
 **I want** the app to continuously show whether the drive is ready, empty, or has a disc,
