@@ -9,11 +9,11 @@ class SettingsManager(context: Context) {
 
     var isVirtualDriveEnabled: Boolean
         get() = prefs.getBoolean("isVirtualDriveEnabled", false)
-        set(value) = prefs.edit().putBoolean("isVirtualDriveEnabled", value).apply()
+        set(value) = prefs.edit().putBoolean("isVirtualDriveEnabled", value).commit().let {}
 
     var selectedTestCdIndex: Int
         get() = prefs.getInt("selectedTestCdIndex", 0)
-        set(value) = prefs.edit().putInt("selectedTestCdIndex", value).apply()
+        set(value) = prefs.edit().putInt("selectedTestCdIndex", value).commit().let {}
 
     val testCds = listOf(
         TestCd(
