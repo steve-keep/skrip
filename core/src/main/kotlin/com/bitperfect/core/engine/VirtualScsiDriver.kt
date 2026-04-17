@@ -112,7 +112,11 @@ class VirtualScsiDriver(var testCd: TestCd) : IScsiDriver {
                     0xAA.toInt() // Lead-out
                 }
 
-                buffer.put(base + 1, 0x14) // ADR/Control (Data/Audio)
+                // ADR=1 (Q sub-channel encodes current position data)
+                // Control bit 2 = 0 (Audio), bit 2 = 1 (Data)
+                // Standard audio track is usually Control=0 or 1.
+                // 0x10 -> ADR=1, Control=0 (Audio)
+                buffer.put(base + 1, 0x10.toByte())
                 buffer.put(base + 2, trackNum.toByte())
 
                 val lba = if (trackNum == 0xAA) testCd.trackOffsets[0] else testCd.trackOffsets[trackNum]

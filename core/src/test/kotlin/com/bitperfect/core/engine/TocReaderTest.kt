@@ -33,14 +33,9 @@ class TocReaderTest {
 
         // Track 1
         val base1 = 4
-        buffer.put(base1 + 1, 0x14.toByte()) // ADR=1, Control=4 (Data?) -> Wait, isAudio check is (control & 0x04) == 0.
-        // 0x14: Control=1, ADR=4? No, Control is 4-bit, ADR is 4-bit.
-        // controlAdr = response[base + 1].toInt() and 0xFF
-        // control = (controlAdr shr 4) and 0x0F
-        // adr = controlAdr and 0x0F
-        // 0x14 -> control=1, adr=4. isAudio = (1 & 0x04) == 0 -> true.
-        // Actually standard audio track control is usually 0, 1, 2. Bit 2 (0x04) is Data.
-        buffer.put(base1 + 1, 0x01.toByte()) // control=0, adr=1. isAudio=true
+        // controlAdr = 0x10 -> ADR=1, Control=0 (Audio)
+        // ADR=1 (bits 7-4), Control=0 (bits 3-0)
+        buffer.put(base1 + 1, 0x10.toByte())
         buffer.put(base1 + 2, 1) // Track 1
         buffer.put(base1 + 5, 0) // M
         buffer.put(base1 + 6, 2) // S
@@ -48,7 +43,7 @@ class TocReaderTest {
 
         // Track 2
         val base2 = 12
-        buffer.put(base2 + 1, 0x01.toByte())
+        buffer.put(base2 + 1, 0x10.toByte())
         buffer.put(base2 + 2, 2) // Track 2
         buffer.put(base2 + 5, 5) // M
         buffer.put(base2 + 6, 0) // S
@@ -56,7 +51,7 @@ class TocReaderTest {
 
         // Lead-out
         val base3 = 20
-        buffer.put(base3 + 1, 0x01.toByte())
+        buffer.put(base3 + 1, 0x10.toByte())
         buffer.put(base3 + 2, 0xAA.toByte()) // Lead-out
         buffer.put(base3 + 5, 10) // M
         buffer.put(base3 + 6, 0) // S

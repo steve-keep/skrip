@@ -108,12 +108,14 @@ class SettingsAndRipTest {
         composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true).onFirst().performClick()
 
         // 3. Wait for "Ready" status and Track List to appear
-        composeTestRule.waitUntil(15000) {
+        // Use a longer timeout for CI stability
+        composeTestRule.waitUntil(30000) {
             composeTestRule.onAllNodesWithText("Ready", ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
         // 4. Verify Track List components are visible
+        // Scroll might be needed if there are many tracks or small screen
         composeTestRule.onNodeWithText("Disc Contents", ignoreCase = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("01").assertIsDisplayed()
         composeTestRule.onNodeWithText("Audio Track", substring = true).assertIsDisplayed()

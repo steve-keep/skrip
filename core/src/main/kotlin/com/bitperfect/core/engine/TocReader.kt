@@ -37,7 +37,9 @@ class TocReader(private val scsiDriver: IScsiDriver) {
             if (base + 8 > response.size) break
 
             val controlAdr = response[base + 1].toInt() and 0xFF
-            val control = (controlAdr shr 4) and 0x0F
+            // Byte 1: bits 7-4 ADR, bits 3-0 Control
+            val control = controlAdr and 0x0F
+            val adr = (controlAdr shr 4) and 0x0F
 
             val trackNum = response[base + 2].toInt() and 0xFF
 
