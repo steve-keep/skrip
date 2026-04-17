@@ -1,12 +1,8 @@
 # 💿✨ BitPerfect ✨💿
 
-<p align="center">
-  <img src="assets/logo.jpg" alt="BitPerfect Logo" width="200" />
-</p>
-
 Welcome to **BitPerfect**! The ultimate, absolute, no-compromise, bit-obsessed CD ripping app for Android! 📱🎧
 
-[🌐 Check out our Website!](https://steve-keep.github.io/BitPerfect/)
+[🌐 More Info](https://steve-keep.github.io/BitPerfect/)
 
 Are you tired of wondering if that scratch on track 4 of your rare Japanese import of *Dark Side of the Moon* ruined the audio? 😱 Do you lie awake at night sweating over drive read offsets and cache flushing? 😰 Well, grab your OTG cable and your favorite USB CD drive, because we're about to get **BIT PERFECT**! 🚀🔥
 
