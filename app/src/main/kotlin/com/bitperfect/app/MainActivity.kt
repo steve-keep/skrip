@@ -17,6 +17,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -180,7 +186,20 @@ class MainActivity : ComponentActivity() {
                     topBar = {
                         TopAppBar(
                             title = {
-                                Text(if (selectedDevice == null) "Select USB Drive" else "Drive Diagnostics")
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        color = Color(0xFF191C20),
+                                        shape = MaterialTheme.shapes.small,
+                                        modifier = Modifier.padding(end = 12.dp).size(32.dp)
+                                    ) {
+                                        Image(
+                                            painter = painterResource(id = R.drawable.app_logo),
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                    Text(if (selectedDevice == null) "BitPerfect" else "Drive Diagnostics")
+                                }
                             },
                             navigationIcon = {
                                 if (selectedDevice != null) {

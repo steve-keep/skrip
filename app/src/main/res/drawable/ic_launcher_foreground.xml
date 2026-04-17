@@ -6,29 +6,38 @@
     <group
         android:translateX="18"
         android:translateY="18">
-        <!-- CD Disc -->
+
+        <!-- Outer Dark Ring -->
+        <path
+            android:fillColor="#263238"
+            android:pathData="M36,36m-31,0a31,31 0,1 1,62 0a31,31 0,1 1,-62 0" />
+
+        <!-- Main CD Disc (Two-tone) -->
+        <!-- Left Side (Lighter Green) -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M36,6 C19.43,6 6,19.43 6,36 C6,52.57 19.43,66 36,66 L36,6 Z" />
+
+        <!-- Right Side (Darker Green) -->
+        <path
+            android:fillColor="#388E3C"
+            android:pathData="M36,6 C52.57,6 66,19.43 66,36 C66,52.57 52.57,66 36,66 L36,6 Z" />
+
+        <!-- Black Center Hole -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M36,36m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0" />
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M36,36m-30,0a30,30 0,1 1,60 0a30,30 0,1 1,-60 0" />
+            android:pathData="M36,36m-3.5,0a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0" />
 
-        <!-- Tonal Accent Ring -->
+        <!-- Pixelated bits on the right side -->
+        <!-- Using a mix of shades for the bits -->
         <path
-            android:fillColor="#B9F6CA"
-            android:pathData="M36,36m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
-
-        <!-- Center Hole -->
+            android:fillColor="#388E3C"
+            android:pathData="M56,16h4v4h-4z M62,20h4v4h-4z M58,28h4v4h-4z M64,32h4v4h-4z M60,40h4v4h-4z M66,48h4v4h-4z M58,52h4v4h-4z M52,58h4v4h-4z M64,12h4v4h-4z M70,24h4v4h-4z M72,36h4v4h-4z M74,50h4v4h-4z" />
         <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M36,36m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
-
-        <!-- Bit-like square patterns -->
-        <path
-            android:fillColor="#00C853"
-            android:pathData="M48,22h4v4h-4z M58,34h4v4h-4z M48,46h4v4h-4z M34,58h4v4h-4z M22,46h4v4h-4z M12,34h4v4h-4z M22,22h4v4h-4z M34,12h4v4h-4z" />
-
-        <!-- Center Checkmark for "Perfect" -->
-        <path
-            android:fillColor="#00C853"
-            android:pathData="M34,40.17l-3.17,-3.17 -1.42,1.41 4.59,4.59 10,-10 -1.41,-1.41z" />
+            android:fillColor="#A5D6A7"
+            android:pathData="M50,12h4v4h-4z M54,24h4v4h-4z M52,36h4v4h-4z M54,48h4v4h-4z M60,54h4v4h-4z" />
     </group>
 </vector>
