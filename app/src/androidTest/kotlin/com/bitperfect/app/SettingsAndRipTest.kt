@@ -54,12 +54,23 @@ class SettingsAndRipTest {
         // 4. Go back
         composeTestRule.onNodeWithContentDescription("Back").performClick()
 
-        // 5. Check if Virtual Drive appears in Device List
+        // Check if Virtual Drive appears in Device List
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true).onFirst().assertExists()
+        composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true).onFirst().performClick()
+
+        // Wait for Track List to load
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("Track List", substring = true, ignoreCase = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Assert Track 1 and Audio badge exist
+        composeTestRule.onNodeWithText("1.", substring = true).assertExists()
+        composeTestRule.onAllNodesWithText("Audio", substring = true).onFirst().assertExists()
+        composeTestRule.onNodeWithText("Total Duration", substring = true).assertExists()
     }
 
     @Test
