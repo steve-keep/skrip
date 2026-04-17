@@ -92,4 +92,32 @@ class SettingsAndRipTest {
                 .fetchSemanticsNodes().isNotEmpty()
         }
     }
+
+    @Test
+    fun testTrackListVisibility() {
+        // 1. Enable Virtual Drive
+        composeTestRule.onNode(hasText("Settings", ignoreCase = true) and hasClickAction()).performClick()
+        composeTestRule.onNode(hasText("Enable Virtual Drive", substring = true) and hasClickAction()).performClick()
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+
+        // 2. Select Virtual Drive
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true).onFirst().performClick()
+
+        // 3. Verify Track List appears
+        // Polling should trigger TOC read and show the track list.
+        // We look for "Track List" header and at least one track entry.
+        composeTestRule.waitUntil(20000) {
+            composeTestRule.onAllNodesWithText("Track List", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeTestRule.onNodeWithText("Track List").assertExists()
+        // Our default test CD (Thriller) should have its tracks
+        composeTestRule.onNodeWithText("Track 1", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Total Duration", substring = true).assertExists()
+    }
 }

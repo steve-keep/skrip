@@ -131,4 +131,66 @@ class RippingEngineTest {
         // With C2 and no errors, it should only do 1 pass
         verify(exactly = 50) { scsiDriver.executeScsiCommand(fd, any<ByteArray>(), 2352 + 294, any<Int>(), any<Int>(), any<Int>()) }
     }
+
+    @Test
+    fun testPollDriveStatus_UpdatesToc() = runBlocking {
+        val fd = 1
+        val turResponse = ByteArray(0)
+        val tocResponse = ByteArray(804)
+        tocResponse[1] = 0x02 // MSF bit
+        tocResponse[2] = 1 // First track
+        tocResponse[3] = 1 // Last track
+        tocResponse[4+2] = 1 // Track 1
+        tocResponse[4+5] = 0 // 00:02:00 -> LBA 0
+        tocResponse[4+6] = 2
+        tocResponse[4+7] = 0
+        tocResponse[12+2] = 0xAA.toByte() // Lead-out
+        tocResponse[12+5] = 10 // 10:00:00 -> LBA 44850
+
+        every { scsiDriver.executeScsiCommand(fd, match { it[0] == 0.toByte() }, 0, any(), any()) } returns turResponse
+        every { scsiDriver.executeScsiCommand(fd, match { it[0] == 0x43.toByte() }, 804, any(), any()) } returns tocResponse
+
+        rippingEngine.pollDriveStatus(fd, scsiDriver, 0x81, 0x01)
+
+        val state = rippingEngine.ripState.value
+        assertEquals("Ready", state.driveStatus)
+        assertEquals(1, state.discToc?.trackCount)
+        assertEquals(1, state.discToc?.tracks?.first()?.number)
+        assertEquals(44850, state.discToc?.leadOutLba)
+    }
+
+    @Test
+    fun testPollDriveStatus_ClearsTocOnNotReady() = runBlocking {
+        val fd = 1
+        // First poll: Ready with TOC
+        val turResponse = ByteArray(0)
+        val tocResponse = ByteArray(804)
+        tocResponse[1] = 0x02
+        tocResponse[2] = 1
+        tocResponse[3] = 1
+        tocResponse[4+2] = 1
+        tocResponse[4+6] = 2
+        tocResponse[12+2] = 0xAA.toByte()
+        tocResponse[12+5] = 10
+
+        every { scsiDriver.executeScsiCommand(fd, match { it[0] == 0.toByte() }, 0, any(), any()) } returns turResponse
+        every { scsiDriver.executeScsiCommand(fd, match { it[0] == 0x43.toByte() }, 804, any(), any()) } returns tocResponse
+
+        rippingEngine.pollDriveStatus(fd, scsiDriver, 0x81, 0x01)
+        assertEquals(1, rippingEngine.ripState.value.discToc?.trackCount)
+
+        // Second poll: Not Ready
+        val senseData = ByteArray(18)
+        senseData[2] = 0x02 // Sense Key: Not Ready
+        senseData[12] = 0x3A // ASC: No disc
+
+        every { scsiDriver.executeScsiCommand(fd, match { it[0] == 0.toByte() }, 0, any(), any()) } returns null
+        every { scsiDriver.executeScsiCommand(fd, match { it[0] == 0x03.toByte() }, 18, any(), any()) } returns senseData
+
+        rippingEngine.pollDriveStatus(fd, scsiDriver, 0x81, 0x01)
+
+        val state = rippingEngine.ripState.value
+        assertEquals("No Disc / Tray Open", state.driveStatus)
+        assertEquals(null, state.discToc)
+    }
 }

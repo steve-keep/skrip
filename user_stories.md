@@ -165,7 +165,7 @@
 ---
 
 ### Story 3.2 — Display the track list in the UI
-- [ ] **Done**
+- [x] **Done**
 
 **As a** user,
 **I want** to see the full list of tracks on the inserted disc immediately after it is detected,

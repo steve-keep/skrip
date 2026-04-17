@@ -52,6 +52,16 @@ class TrayControlTest {
         every { scsiDriver.executeScsiCommand(fd, loadCmd, 0, any(), any(), any()) } returns ByteArray(0)
         // Mock TUR to return success after load
         every { scsiDriver.executeScsiCommand(fd, turCmd, 0, any(), any(), any()) } returns ByteArray(0)
+        // Mock READ TOC for Ready state
+        val tocResponse = ByteArray(804)
+        tocResponse[1] = 0x02 // MSF bit
+        tocResponse[2] = 1
+        tocResponse[3] = 1
+        tocResponse[4+2] = 1
+        tocResponse[4+6] = 2
+        tocResponse[12+2] = 0xAA.toByte()
+        tocResponse[12+5] = 10
+        every { scsiDriver.executeScsiCommand(fd, match { it[0] == 0x43.toByte() }, 804, any(), any(), any()) } returns tocResponse
 
         rippingEngine.loadTray(fd, scsiDriver)
 

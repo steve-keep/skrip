@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bitperfect.core.engine.BitPerfectDrive
 import com.bitperfect.core.engine.DriveCapabilities
+import com.bitperfect.core.engine.DiscToc
 import com.bitperfect.core.engine.RipState
 
 @Composable
@@ -253,6 +254,97 @@ fun CapabilityBadge(label: String, supported: Boolean) {
 }
 
 @Composable
+fun TrackList(discToc: DiscToc) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Track List",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                discToc.tracks.forEach { track ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = track.number.toString().padStart(2, '0'),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = "Track ${track.number}",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = if (track.isAudio) "Audio CD" else "Data Track",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Text(
+                            text = formatDuration(track.durationSectors),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Total Duration",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = formatDuration(discToc.totalDurationSectors),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatDuration(sectors: Int): String {
+    val totalSeconds = sectors / 75
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
+}
+
+@Composable
 fun DiagnosticDashboard(
     driveCapabilities: DriveCapabilities?,
     ripState: RipState,
@@ -355,6 +447,12 @@ fun DiagnosticDashboard(
                         Text("Load Tray")
                     }
                 }
+            }
+        }
+
+        ripState.discToc?.let { toc ->
+            if (!ripState.isRunning) {
+                TrackList(toc)
             }
         }
 
