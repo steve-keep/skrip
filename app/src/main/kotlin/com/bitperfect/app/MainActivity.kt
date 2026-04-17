@@ -85,7 +85,7 @@ class MainActivity : ComponentActivity() {
     private var selectedDevice by mutableStateOf<BitPerfectDrive?>(null)
     private var isShowingSettings by mutableStateOf(false)
     private var logs by mutableStateOf(listOf("App started"))
-    private var driveCapabilities by mutableStateOf<DriveCapabilities?>(null)
+    private var detectedCapabilities by mutableStateOf<DriveCapabilities?>(null)
 
     private var ripState by mutableStateOf(RipState())
 
@@ -341,7 +341,7 @@ class MainActivity : ComponentActivity() {
                                     } else {
 
                                         DiagnosticDashboard(
-                                            driveCapabilities = driveCapabilities,
+                                            driveCapabilities = detectedCapabilities,
                                             ripState = ripState,
                                             logs = logs,
                                             onStartRip = {
@@ -453,7 +453,7 @@ class MainActivity : ComponentActivity() {
 
     private fun runDiagnostics(drive: BitPerfectDrive) {
         selectedDevice = drive
-        driveCapabilities = settingsManager.getDriveCapabilities(drive.identifier)
+        detectedCapabilities = settingsManager.getDriveCapabilities(drive.identifier)
         startPolling(drive)
         addLog("Running diagnostics for ${drive.name}")
 
@@ -505,7 +505,7 @@ class MainActivity : ComponentActivity() {
             val result = rippingService?.rippingEngine?.detectCapabilities(fd, driver, endpointIn, endpointOut)
             if (result != null && result.isSuccess) {
                 val caps = result.getOrThrow()
-                driveCapabilities = caps
+                detectedCapabilities = caps
                 addLog("Diagnostics Success: ${caps.vendor} ${caps.product} (Rev: ${caps.revision})")
                 // Cache it
                 selectedDevice?.let { drive ->
@@ -609,7 +609,7 @@ class MainActivity : ComponentActivity() {
         val outputDir = settingsManager.outputFolderUri ?: getExternalFilesDir(null)?.absolutePath ?: filesDir.absolutePath
         addLog("Starting full rip to $outputDir")
 
-        val caps = driveCapabilities ?: DriveCapabilities(hasCache = true)
+        val caps = detectedCapabilities ?: DriveCapabilities(hasCache = true)
 
         lifecycleScope.launch {
             if (drive is BitPerfectDrive.Physical) {
