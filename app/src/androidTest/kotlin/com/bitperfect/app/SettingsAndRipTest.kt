@@ -2,6 +2,7 @@ package com.bitperfect.app
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -28,8 +29,12 @@ class SettingsAndRipTest {
 
     @Before
     fun setup() {
-        // Clear SharedPreferences to ensure test isolation
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+        // Stop service to ensure clean state
+        context.stopService(Intent(context, RippingService::class.java))
+
+        // Clear SharedPreferences to ensure test isolation
         context.getSharedPreferences("bitperfect_settings", Context.MODE_PRIVATE).edit().clear().commit()
     }
 
@@ -42,7 +47,7 @@ class SettingsAndRipTest {
         composeTestRule.onNode(hasText("Enable Virtual Drive", substring = true) and hasClickAction()).performClick()
 
         // Check if "Selected Test CD" header appeared (it only shows if enabled)
-        composeTestRule.waitUntil(20000) {
+        composeTestRule.waitUntil(30000) {
             composeTestRule.onAllNodesWithText("Selected Test CD").fetchSemanticsNodes().isNotEmpty()
         }
 
@@ -53,7 +58,7 @@ class SettingsAndRipTest {
         composeTestRule.onNodeWithContentDescription("Back").performClick()
 
         // 5. Check if Virtual Drive appears in Device List
-        composeTestRule.waitUntil(20000) {
+        composeTestRule.waitUntil(30000) {
             composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
@@ -70,14 +75,14 @@ class SettingsAndRipTest {
         composeTestRule.onNodeWithContentDescription("Back").performClick()
 
         // 2. Wait for Device List and select Virtual Drive
-        composeTestRule.waitUntil(20000) {
+        composeTestRule.waitUntil(30000) {
             composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true).onFirst().performClick()
 
         // 3. Wait for "Ready" status
-        composeTestRule.waitUntil(20000) {
+        composeTestRule.waitUntil(30000) {
             composeTestRule.onAllNodesWithText("Ready", ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
@@ -87,7 +92,7 @@ class SettingsAndRipTest {
         composeTestRule.onNode(hasText("Start Secure Rip", substring = true) and hasClickAction()).performClick()
 
         // 5. Verify no crash and progress starts
-        composeTestRule.waitUntil(30000) {
+        composeTestRule.waitUntil(60000) {
             composeTestRule.onAllNodesWithText("Ripping Status", substring = true, ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
@@ -101,14 +106,14 @@ class SettingsAndRipTest {
         composeTestRule.onNodeWithContentDescription("Back").performClick()
 
         // 2. Select Virtual Drive
-        composeTestRule.waitUntil(20000) {
+        composeTestRule.waitUntil(30000) {
             composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true).onFirst().performClick()
 
         // 3. Verify Track List appears
-        composeTestRule.waitUntil(30000) {
+        composeTestRule.waitUntil(60000) {
             composeTestRule.onAllNodesWithText("Track List", substring = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }

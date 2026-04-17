@@ -359,11 +359,11 @@ fun DiagnosticDashboard(
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
-                .weight(3f)
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Ripping Status (moved up for prominence)
-            if (ripState.isRunning || (ripState.progress > 0 && ripState.progress < 1f)) {
+            // Ripping Status
+            if (ripState.isRunning || ripState.status.contains("Error") || ripState.status.contains("Complete")) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -373,27 +373,29 @@ fun DiagnosticDashboard(
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
                         Text(
-                            text = "Ripping Status: ${ripState.status}",
+                            text = "Status: ${ripState.status}",
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = if (ripState.status.contains("Error")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                         )
-                        LinearProgressIndicator(
-                            progress = { ripState.progress },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerLowest
-                        )
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(
-                                text = "Track ${ripState.currentTrack}/${ripState.totalTracks}",
-                                style = MaterialTheme.typography.bodyMedium
+                        if (ripState.totalSectors > 0) {
+                            LinearProgressIndicator(
+                                progress = { ripState.progress },
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceContainerLowest
                             )
-                            Text(
-                                text = "${(ripState.progress * 100).toInt()}%",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(
+                                    text = "Track ${ripState.currentTrack}/${ripState.totalTracks}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = "${(ripState.progress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -414,24 +416,8 @@ fun DiagnosticDashboard(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    val info = if (driveCapabilities != null) "${driveCapabilities.vendor} ${driveCapabilities.product} (Rev: ${driveCapabilities.revision})" else "Run diagnostics to detect drive"
+                    val info = if (driveCapabilities != null) "${driveCapabilities.vendor} ${driveCapabilities.product} (Rev: ${driveCapabilities.revision})" else "Detecting drive..."
                     Text(text = info, style = MaterialTheme.typography.titleMedium)
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Text(
-                        text = "Detected Capabilities",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    if (driveCapabilities != null) {
-                        CapabilityBadge("Accurate Stream", driveCapabilities.accurateStream)
-                        CapabilityBadge("C2 Error Pointers", driveCapabilities.supportsC2)
-                        CapabilityBadge("Cache detected", driveCapabilities.hasCache)
-                        Text(text = "Read Offset: ${driveCapabilities.readOffset}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        Text(text = "No capabilities detected yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -447,10 +433,10 @@ fun DiagnosticDashboard(
                     ) {
                         Text(
                             text = ripState.driveStatus,
-                            style = MaterialTheme.typography.displaySmall, // Large for status
+                            style = MaterialTheme.typography.displaySmall,
                             color = when (ripState.driveStatus) {
                                 "Ready" -> MaterialTheme.colorScheme.primary
-                                "No Disc / Tray Open" -> MaterialTheme.colorScheme.tertiary // Warn instead of Alarm
+                                "No Disc / Tray Open" -> MaterialTheme.colorScheme.tertiary
                                 else -> MaterialTheme.colorScheme.onSurface
                             }
                         )
@@ -502,7 +488,7 @@ fun DiagnosticDashboard(
             }
 
             // Rip Button
-            if (!ripState.isRunning && ripState.progress == 0f) {
+            if (!ripState.isRunning && (ripState.progress == 0f || ripState.progress == 1f)) {
                 Button(
                     onClick = onStartRip,
                     enabled = ripState.driveStatus == "Ready" && !ripState.isTrayOperationInProgress,
@@ -533,8 +519,8 @@ fun DiagnosticDashboard(
             }
         }
 
-        // Live Terminal (Bottom area)
-        Column(modifier = Modifier.weight(1f)) {
+        // Live Terminal
+        Column(modifier = Modifier.heightIn(max = 200.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -552,14 +538,13 @@ fun DiagnosticDashboard(
 
             Surface(
                 modifier = Modifier
-                    .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.7f),
                 shape = MaterialTheme.shapes.large
             ) {
                 LazyColumn(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.heightIn(max = 120.dp).padding(16.dp),
                     reverseLayout = true
                 ) {
                     items(logs.reversed()) { log ->

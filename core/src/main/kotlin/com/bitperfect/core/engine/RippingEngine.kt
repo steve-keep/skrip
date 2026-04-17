@@ -64,7 +64,7 @@ class RippingEngine(
         endpointIn: Int = 0x81,
         endpointOut: Int = 0x01
     ) = withContext(Dispatchers.IO) {
-        _ripState.update { it.copy(isRunning = true, status = "Reading TOC...") }
+        _ripState.update { it.copy(isRunning = true, status = "Reading TOC...", progress = 0f) }
 
         try {
             val toc = TocReader(scsiDriver).readToc(fd, endpointIn, endpointOut)
@@ -116,7 +116,7 @@ class RippingEngine(
             _ripState.update { it.copy(isRunning = false, status = "Rip Complete", progress = 1f) }
         } catch (e: Exception) {
             Log.e("RippingEngine", "Burst rip failed", e)
-            _ripState.update { it.copy(isRunning = false, status = "Fatal Error: ${e.message}") }
+            _ripState.update { it.copy(isRunning = false, status = "Fatal Error: ${e.localizedMessage}") }
         }
     }
 
@@ -129,7 +129,7 @@ class RippingEngine(
         endpointIn: Int = 0x81,
         endpointOut: Int = 0x01
     ) = withContext(Dispatchers.IO) {
-        _ripState.update { it.copy(isRunning = true, status = "Initializing Secure Rip...") }
+        _ripState.update { it.copy(isRunning = true, status = "Initializing Secure Rip...", progress = 0f) }
 
         try {
             val toc = TocReader(scsiDriver).readToc(fd, endpointIn, endpointOut)
@@ -180,7 +180,7 @@ class RippingEngine(
             _ripState.update { it.copy(isRunning = false, status = "Secure Rip Complete", progress = 1f) }
         } catch (e: Exception) {
             Log.e("RippingEngine", "Secure rip failed", e)
-            _ripState.update { it.copy(isRunning = false, status = "Fatal Error: ${e.message}") }
+            _ripState.update { it.copy(isRunning = false, status = "Fatal Error: ${e.localizedMessage}") }
         }
     }
 
@@ -359,7 +359,7 @@ class RippingEngine(
         endpointIn: Int = 0x81,
         endpointOut: Int = 0x01
     ) = withContext(Dispatchers.IO) {
-        _ripState.update { it.copy(isRunning = true, status = "Reading TOC...") }
+        _ripState.update { it.copy(isRunning = true, status = "Reading TOC...", progress = 0f) }
 
         try {
             val toc = TocReader(scsiDriver).readToc(fd, endpointIn, endpointOut)
@@ -495,7 +495,7 @@ class RippingEngine(
             _ripState.update { it.copy(isRunning = false, status = "Full Rip Complete", progress = 1f) }
         } catch (e: Exception) {
             Log.e("RippingEngine", "Full rip failed", e)
-            _ripState.update { it.copy(isRunning = false, status = "Fatal Error: ${e.message}") }
+            _ripState.update { it.copy(isRunning = false, status = "Fatal Error: ${e.localizedMessage}") }
         }
     }
 
