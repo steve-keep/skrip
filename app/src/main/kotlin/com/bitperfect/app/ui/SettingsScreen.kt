@@ -5,6 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -48,21 +50,27 @@ fun SettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.primary
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
-                .fillMaxSize()
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(1.dp) // Minimal spacing for the "slabs" feel
         ) {
             item {
                 Text(
                     text = "Storage",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
                 )
             }
 
@@ -79,7 +87,7 @@ fun SettingsScreen(
                     text = "Development & Testing",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
                 )
             }
 
@@ -97,36 +105,57 @@ fun SettingsScreen(
 
             if (isVirtualDriveEnabled) {
                 item {
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    Text(
-                        text = "Selected Test CD",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Selected Test CD",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                        )
+                    }
                 }
 
                 itemsIndexed(settingsManager.testCds) { index, cd ->
-                    Row(
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = selectedTestCdIndex == index,
-                            onClick = {
+                            .clickable {
                                 selectedTestCdIndex = index
                                 settingsManager.selectedTestCdIndex = index
                             }
-                        )
-                        Column(
+                    ) {
+                        Row(
                             modifier = Modifier
-                                .padding(start = 8.dp)
-                                .weight(1f)
+                                .padding(horizontal = 24.dp, vertical = 12.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                         ) {
-                            Text(text = cd.album, style = MaterialTheme.typography.bodyLarge)
-                            Text(text = cd.artist, style = MaterialTheme.typography.bodySmall)
+                            RadioButton(
+                                selected = selectedTestCdIndex == index,
+                                onClick = {
+                                    selectedTestCdIndex = index
+                                    settingsManager.selectedTestCdIndex = index
+                                }
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .padding(start = 16.dp)
+                                    .weight(1f)
+                            ) {
+                                Text(
+                                    text = cd.album,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = cd.artist,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -137,7 +166,7 @@ fun SettingsScreen(
                     text = "Support & Debug",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
                 )
             }
 
@@ -155,6 +184,7 @@ fun SettingsScreen(
                     title = "About Virtual Drive",
                     description = "The virtual drive uses deterministic mock data to simulate successful rips and error scenarios without physical hardware."
                 )
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }

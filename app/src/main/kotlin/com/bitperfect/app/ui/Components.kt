@@ -1,20 +1,22 @@
 package com.bitperfect.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import android.hardware.usb.UsbDevice
 import com.bitperfect.core.engine.BitPerfectDrive
 import com.bitperfect.core.engine.RipState
 
@@ -26,39 +28,45 @@ fun PreferenceItem(
     onClick: () -> Unit = {},
     trailing: @Composable (() -> Unit)? = null
 ) {
-    Row(
+    // Implementing "Tonal Layering": Items sit on surfaceContainerLow
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-            if (description != null) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
+                Spacer(modifier = Modifier.width(16.dp))
             }
-        }
-        if (trailing != null) {
-            Box(modifier = Modifier.padding(start = 16.dp)) {
-                trailing()
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (description != null) {
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (trailing != null) {
+                Box(modifier = Modifier.padding(start = 16.dp)) {
+                    trailing()
+                }
             }
         }
     }
@@ -78,7 +86,14 @@ fun PreferenceSwitch(
         icon = icon,
         onClick = { onCheckedChange(!checked) },
         trailing = {
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary
+                )
+            )
         }
     )
 }
@@ -89,34 +104,39 @@ fun PreferencesHintCard(
     description: String,
     icon: ImageVector = Icons.Default.Info
 ) {
+    // "Editorial Tonal Scale": primary for titles, on-surface-variant for data
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        shape = MaterialTheme.shapes.extraLarge // 1.5rem / 24dp
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(24.dp),
+            verticalAlignment = Alignment.Top
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -130,16 +150,26 @@ fun BitPerfectTextField(
     label: String,
     modifier: Modifier = Modifier
 ) {
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        modifier = modifier.fillMaxWidth(),
-        colors = TextFieldDefaults.colors(
-            unfocusedContainerColor = Color.Transparent,
-            focusedContainerColor = Color.Transparent
+    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 4.dp, start = 4.dp)
         )
-    )
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.small,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            )
+        )
+    }
 }
 
 @Composable
@@ -147,40 +177,53 @@ fun DeviceList(
     devices: List<BitPerfectDrive>,
     onDeviceClick: (BitPerfectDrive) -> Unit
 ) {
-    Column {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Text(
             text = "Select Drive",
             style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(24.dp),
+            color = MaterialTheme.colorScheme.primary
         )
+
         if (devices.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Connect a USB CD drive", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Connect a USB CD drive",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
-        LazyColumn {
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp) // "The List Rule": spacing instead of dividers
+        ) {
             items(devices) { drive ->
-                ElevatedCard(
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
                     onClick = { onDeviceClick(drive) }
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(24.dp)) {
                         Text(
                             text = drive.name,
-                            style = MaterialTheme.typography.titleLarge
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "${drive.manufacturer ?: "Unknown Manufacturer"} (${if (drive is BitPerfectDrive.Virtual) "Virtual" else "USB"})",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "ID: ${drive.identifier}",
-                            style = MaterialTheme.typography.labelSmall
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
                         )
                     }
                 }
@@ -198,29 +241,52 @@ fun DiagnosticDashboard(
     onStartRip: () -> Unit,
     onCopyDebugReport: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        ElevatedCard(
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        // Tonal Layering: Cards on background
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(16.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "Hardware Information", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Hardware Information",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = inquiryData, style = MaterialTheme.typography.bodyLarge)
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Detected Capabilities", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Text(text = inquiryData, style = MaterialTheme.typography.titleMedium)
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Detected Capabilities",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
                 capabilities.forEach { capability ->
-                    Text(text = "• $capability", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = "• $capability",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Drive Status", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Drive Status",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
                 Text(
                     text = ripState.driveStatus,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.displaySmall, // Large for status
                     color = when (ripState.driveStatus) {
                         "Ready" -> MaterialTheme.colorScheme.primary
-                        "No Disc / Tray Open" -> MaterialTheme.colorScheme.error
+                        "No Disc / Tray Open" -> MaterialTheme.colorScheme.tertiary // Warn instead of Alarm
                         else -> MaterialTheme.colorScheme.onSurface
                     }
                 )
@@ -228,43 +294,78 @@ fun DiagnosticDashboard(
         }
 
         if (ripState.isRunning || ripState.progress > 0) {
-            ElevatedCard(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(horizontal = 16.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "Ripping Status: ${ripState.status}", style = MaterialTheme.typography.titleMedium)
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        text = "Ripping Status: ${ripState.status}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     LinearProgressIndicator(
                         progress = { ripState.progress },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerLowest
                     )
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Track ${ripState.currentTrack}/${ripState.totalTracks}")
-                        Text(text = "${(ripState.progress * 100).toInt()}%")
+                        Text(
+                            text = "Track ${ripState.currentTrack}/${ripState.totalTracks}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "${(ripState.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Text(text = "Sector ${ripState.currentSector}/${ripState.totalSectors}", style = MaterialTheme.typography.labelSmall)
                 }
             }
         } else {
+            // Primary Action: Gradient fill
             Button(
                 onClick = onStartRip,
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                shape = MaterialTheme.shapes.medium
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .height(56.dp),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues()
             ) {
-                Text("Start Secure Rip")
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.primaryContainer
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Start Secure Rip", style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Live Terminal",
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             TextButton(onClick = onCopyDebugReport) {
                 Text("Copy Debug Report")
@@ -276,11 +377,11 @@ fun DiagnosticDashboard(
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.7f),
             shape = MaterialTheme.shapes.large
         ) {
             LazyColumn(
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier.padding(16.dp),
                 reverseLayout = true
             ) {
                 items(logs.reversed()) { log ->

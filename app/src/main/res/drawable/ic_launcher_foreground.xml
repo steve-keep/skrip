@@ -3,32 +3,29 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Centering the 1024x1024-inspired logic into 108x108 viewport -->
     <group
         android:translateX="18"
         android:translateY="18">
-        <!-- CD Disc -->
+
+        <!-- The CD Disc shape (Simplified from unnamed (1).jpg) -->
+        <!-- Main Green Circle -->
         <path
-            android:fillColor="#FFFFFF"
+            android:fillColor="#1DB954"
             android:pathData="M36,36m-30,0a30,30 0,1 1,60 0a30,30 0,1 1,-60 0" />
 
-        <!-- Tonal Accent Ring -->
-        <path
-            android:fillColor="#B9F6CA"
-            android:pathData="M36,36m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
-
-        <!-- Center Hole -->
+        <!-- Center Ring/Hole -->
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M36,36m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
-
-        <!-- Bit-like square patterns -->
+            android:fillAlpha="0.8"
+            android:pathData="M36,36m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" />
         <path
-            android:fillColor="#00C853"
-            android:pathData="M48,22h4v4h-4z M58,34h4v4h-4z M48,46h4v4h-4z M34,58h4v4h-4z M22,46h4v4h-4z M12,34h4v4h-4z M22,22h4v4h-4z M34,12h4v4h-4z" />
+            android:fillColor="#1DB954"
+            android:pathData="M36,36m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
 
-        <!-- Center Checkmark for "Perfect" -->
+        <!-- Pixelated bits on the right side -->
         <path
-            android:fillColor="#00C853"
-            android:pathData="M34,40.17l-3.17,-3.17 -1.42,1.41 4.59,4.59 10,-10 -1.41,-1.41z" />
+            android:fillColor="#1DB954"
+            android:pathData="M56,16h4v4h-4z M62,20h4v4h-4z M58,28h4v4h-4z M64,32h4v4h-4z M60,40h4v4h-4z M66,48h4v4h-4z M58,52h4v4h-4z M52,58h4v4h-4z M64,12h4v4h-4z M70,24h4v4h-4z M72,36h4v4h-4z M74,50h4v4h-4z" />
     </group>
 </vector>
