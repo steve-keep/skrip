@@ -373,7 +373,7 @@ fun DiagnosticDashboard(
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
                         Text(
-                            text = "Status: ${ripState.status}",
+                            text = "Ripping Status: ${ripState.status}",
                             style = MaterialTheme.typography.titleMedium,
                             color = if (ripState.status.contains("Error")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                         )
@@ -416,8 +416,24 @@ fun DiagnosticDashboard(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    val info = if (driveCapabilities != null) "${driveCapabilities.vendor} ${driveCapabilities.product} (Rev: ${driveCapabilities.revision})" else "Detecting drive..."
+                    val info = if (driveCapabilities != null) "${driveCapabilities.vendor} ${driveCapabilities.product} (Rev: ${driveCapabilities.revision})" else "Run diagnostics to detect drive"
                     Text(text = info, style = MaterialTheme.typography.titleMedium)
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = "Detected Capabilities",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (driveCapabilities != null) {
+                        CapabilityBadge("Accurate Stream", driveCapabilities.accurateStream)
+                        CapabilityBadge("C2 Error Pointers", driveCapabilities.supportsC2)
+                        CapabilityBadge("Cache detected", driveCapabilities.hasCache)
+                        Text(text = "Read Offset: ${driveCapabilities.readOffset}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Text(text = "No capabilities detected yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
 

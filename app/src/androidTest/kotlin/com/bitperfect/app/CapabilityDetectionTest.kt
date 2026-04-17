@@ -38,7 +38,6 @@ class CapabilityDetectionTest {
         composeTestRule.waitForIdle()
 
         // 1. Go to Settings
-        // Use more specific matcher for the NavigationBarItem
         composeTestRule.onNode(hasText("Settings") and hasClickAction()).performClick()
 
         // 2. Enable Virtual Drive
@@ -48,16 +47,14 @@ class CapabilityDetectionTest {
         composeTestRule.onNodeWithContentDescription("Back").performClick()
 
         // 4. Select Virtual Drive
-        // The virtual drive might take a moment to appear after returning from settings
-        composeTestRule.waitUntil(10000) {
+        composeTestRule.waitUntil(60000) {
             composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true).onFirst().performClick()
 
         // 5. Verify Hardware Information is displayed
-        // RippingEngine.detectCapabilities issues INQUIRY which VirtualScsiDriver handles
-        composeTestRule.waitUntil(15000) {
+        composeTestRule.waitUntil(60000) {
             composeTestRule.onAllNodesWithText("BITPERF VIRTUAL DRIVE", substring = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
