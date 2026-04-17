@@ -27,7 +27,9 @@ data class RipState(
     val status: String = "Idle",
     val reReads: Int = 0,
     val errorCount: Int = 0,
-    val driveStatus: String = "No Drive"
+    val driveStatus: String = "No Drive",
+    val discToc: DiscToc? = null,
+    val tocError: String? = null
 )
 
 data class DriveCapabilities(
@@ -547,7 +549,8 @@ class RippingEngine(
         fd: Int,
         scsiDriver: IScsiDriver,
         endpointIn: Int,
-        endpointOut: Int
+        endpointOut: Int,
+        forceRefresh: Boolean = false
     ) = withContext(Dispatchers.IO) {
         if (_ripState.value.isRunning) return@withContext
 
@@ -556,7 +559,26 @@ class RippingEngine(
         val response = scsiDriver.executeScsiCommand(fd, turCmd, 0, endpointIn, endpointOut)
 
         if (response != null) {
-            _ripState.value = _ripState.value.copy(driveStatus = "Ready")
+            val currentState = _ripState.value
+            if (forceRefresh || currentState.driveStatus != "Ready" || (currentState.discToc == null && currentState.tocError == null)) {
+                _ripState.value = currentState.copy(driveStatus = "Ready", status = "Reading TOC...")
+                val toc = TocReader(scsiDriver).readToc(fd, endpointIn, endpointOut)
+                if (toc != null) {
+                    _ripState.value = _ripState.value.copy(
+                        discToc = toc,
+                        tocError = null,
+                        status = "Disc Ready"
+                    )
+                } else {
+                    _ripState.value = _ripState.value.copy(
+                        discToc = null,
+                        tocError = "Failed to read TOC",
+                        status = "TOC Read Error"
+                    )
+                }
+            } else {
+                _ripState.value = currentState.copy(driveStatus = "Ready")
+            }
         } else {
             // CHECK CONDITION -> REQUEST SENSE (0x03)
             val senseCmd = byteArrayOf(0x03, 0, 0, 0, 18, 0)
@@ -572,9 +594,17 @@ class RippingEngine(
                     senseKey == 0x02 -> "Not Ready"
                     else -> "Error (Key: $senseKey, ASC: $asc)"
                 }
-                _ripState.value = _ripState.value.copy(driveStatus = status)
+                _ripState.value = _ripState.value.copy(
+                    driveStatus = status,
+                    discToc = null,
+                    tocError = null
+                )
             } else {
-                _ripState.value = _ripState.value.copy(driveStatus = "Communication Error")
+                _ripState.value = _ripState.value.copy(
+                    driveStatus = "Communication Error",
+                    discToc = null,
+                    tocError = null
+                )
             }
         }
     }

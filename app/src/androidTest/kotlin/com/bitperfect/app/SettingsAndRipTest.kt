@@ -92,4 +92,31 @@ class SettingsAndRipTest {
                 .fetchSemanticsNodes().isNotEmpty()
         }
     }
+
+    @Test
+    fun testTrackListVisibility() {
+        // 1. Enable Virtual Drive
+        composeTestRule.onNode(hasText("Settings", ignoreCase = true) and hasClickAction()).performClick()
+        composeTestRule.onNode(hasText("Enable Virtual Drive", substring = true) and hasClickAction()).performClick()
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+
+        // 2. Select Virtual Drive
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true).onFirst().performClick()
+
+        // 3. Wait for "Ready" status and Track List to appear
+        composeTestRule.waitUntil(15000) {
+            composeTestRule.onAllNodesWithText("Ready", ignoreCase = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // 4. Verify Track List components are visible
+        composeTestRule.onNodeWithText("Disc Contents", ignoreCase = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("01").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Audio Track", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Total Duration:", substring = true).assertIsDisplayed()
+    }
 }

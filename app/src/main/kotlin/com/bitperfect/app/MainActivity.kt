@@ -355,6 +355,9 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onCopyDebugReport = {
                                                 copyDebugReportToClipboard()
+                                            },
+                                            onRetryToc = {
+                                                selectedDevice?.let { retryToc(it) }
                                             }
                                         )
                                     }
@@ -363,6 +366,40 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private fun retryToc(drive: BitPerfectDrive) {
+        if (ripState.isRunning) return
+
+        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
+            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
+            virtualScsiDriver
+        } else {
+            scsiDriver
+        }
+
+        lifecycleScope.launch {
+            if (drive is BitPerfectDrive.Physical) {
+                val device = drive.device
+                val connection = usbDeviceManager.openDevice(device) ?: return@launch
+                try {
+                    val iface = device.getInterface(0)
+                    if (connection.claimInterface(iface, true)) {
+                        try {
+                            val fd = connection.fileDescriptor
+                            val endpoints = getEndpoints(device)
+                            rippingService?.pollStatus(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut, forceRefresh = true)
+                        } finally {
+                            connection.releaseInterface(iface)
+                        }
+                    }
+                } finally {
+                    connection.close()
+                }
+            } else {
+                rippingService?.pollStatus(999, driverToUse, 0x81, 0x01, forceRefresh = true)
             }
         }
     }

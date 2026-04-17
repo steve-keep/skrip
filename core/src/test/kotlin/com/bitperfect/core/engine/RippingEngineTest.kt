@@ -131,4 +131,34 @@ class RippingEngineTest {
         // With C2 and no errors, it should only do 1 pass
         verify(exactly = 50) { scsiDriver.executeScsiCommand(fd, any<ByteArray>(), 2352 + 294, any<Int>(), any<Int>(), any<Int>()) }
     }
+
+    @Test
+    fun testPollDriveStatus_TriggersTocRead() = runBlocking {
+        val fd = 1
+        // Mock TUR Success
+        every { scsiDriver.executeScsiCommand(fd, any<ByteArray>(), 0, any<Int>(), any<Int>(), any<Int>()) } returns ByteArray(0)
+
+        // Mock TOC response
+        val tocResponse = ByteArray(804)
+        tocResponse[1] = 0x02 // MSF bit
+        tocResponse[2] = 1 // First track
+        tocResponse[3] = 2 // Last track
+        tocResponse[4+2] = 1 // Track 1
+        tocResponse[4+6] = 2 // 00:02:00
+        tocResponse[12+2] = 2 // Track 2
+        tocResponse[12+6] = 5 // 00:05:00
+        tocResponse[20+2] = 0xAA.toByte() // Lead-out
+        tocResponse[20+6] = 10 // 00:10:00
+
+        every { scsiDriver.executeScsiCommand(fd, any<ByteArray>(), 804, any<Int>(), any<Int>(), any<Int>()) } returns tocResponse
+
+        rippingEngine.pollDriveStatus(fd, scsiDriver, 0x81, 0x01)
+
+        val state = rippingEngine.ripState.value
+        assertEquals("Ready", state.driveStatus)
+        assertEquals("Disc Ready", state.status)
+        assertEquals(2, state.discToc?.trackCount)
+        assertEquals(1, state.discToc?.firstTrack)
+        assertEquals(2, state.discToc?.lastTrack)
+    }
 }

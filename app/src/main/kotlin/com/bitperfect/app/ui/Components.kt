@@ -21,9 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.bitperfect.core.engine.BitPerfectDrive
-import com.bitperfect.core.engine.DriveCapabilities
-import com.bitperfect.core.engine.RipState
+import com.bitperfect.core.engine.*
 
 @Composable
 fun PreferenceItem(
@@ -253,6 +251,63 @@ fun CapabilityBadge(label: String, supported: Boolean) {
 }
 
 @Composable
+fun TrackList(discToc: DiscToc) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Disc Contents",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        discToc.tracks.forEach { track ->
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = track.number.toString().padStart(2, '0'),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.width(32.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (track.isAudio) "Audio Track" else "Data Track",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    val minutes = track.durationSectors / (75 * 60)
+                    val seconds = (track.durationSectors / 75) % 60
+                    Text(
+                        text = "%d:%02d".format(minutes, seconds),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        val totalMinutes = discToc.totalDurationSectors / (75 * 60)
+        val totalSeconds = (discToc.totalDurationSectors / 75) % 60
+        Text(
+            text = "Total Duration: %d:%02d (%d tracks)".format(totalMinutes, totalSeconds, discToc.trackCount),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.End)
+        )
+    }
+}
+
+@Composable
 fun DiagnosticDashboard(
     driveCapabilities: DriveCapabilities?,
     ripState: RipState,
@@ -260,18 +315,23 @@ fun DiagnosticDashboard(
     onStartRip: () -> Unit,
     onEject: () -> Unit,
     onLoadTray: () -> Unit,
-    onCopyDebugReport: () -> Unit
+    onCopyDebugReport: () -> Unit,
+    onRetryToc: () -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Tonal Layering: Cards on background
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surfaceContainerLow
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
                 Text(
                     text = "Hardware Information",
                     style = MaterialTheme.typography.labelMedium,
@@ -330,136 +390,188 @@ fun DiagnosticDashboard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onEject,
-                        enabled = !ripState.isRunning && !ripState.isTrayOperationInProgress,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Icon(Icons.Default.ArrowForward, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Eject")
-                    }
-                    OutlinedButton(
-                        onClick = onLoadTray,
-                        enabled = !ripState.isRunning && !ripState.isTrayOperationInProgress,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Load Tray")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onEject,
+                                enabled = !ripState.isRunning && !ripState.isTrayOperationInProgress,
+                                modifier = Modifier.weight(1f),
+                                shape = MaterialTheme.shapes.medium
+                            ) {
+                                Icon(Icons.Default.ArrowForward, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Eject")
+                            }
+                            OutlinedButton(
+                                onClick = onLoadTray,
+                                enabled = !ripState.isRunning && !ripState.isTrayOperationInProgress,
+                                modifier = Modifier.weight(1f),
+                                shape = MaterialTheme.shapes.medium
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Load Tray")
+                            }
+                        }
                     }
                 }
             }
-        }
 
-        if (ripState.isRunning || ripState.progress > 0) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text(
-                        text = "Ripping Status: ${ripState.status}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    LinearProgressIndicator(
-                        progress = { ripState.progress },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerLowest
-                    )
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(
-                            text = "Track ${ripState.currentTrack}/${ripState.totalTracks}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "${(ripState.progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        } else {
-            // Primary Action: Gradient fill
-            Button(
-                onClick = onStartRip,
-                enabled = ripState.driveStatus == "Ready" && !ripState.isTrayOperationInProgress,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(56.dp),
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                contentPadding = PaddingValues()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    if (ripState.driveStatus == "Ready") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                                    if (ripState.driveStatus == "Ready") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-                                )
+            val tocError = ripState.tocError
+            if (tocError != null) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text(
+                                text = "Disc Error",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
                             )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Start Secure Rip", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = tocError,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = onRetryToc,
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Retry Reading Disc")
+                            }
+                        }
+                    }
+                }
+            }
+
+            val discToc = ripState.discToc
+            if (discToc != null) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow
+                    ) {
+                        Box(modifier = Modifier.padding(24.dp)) {
+                            TrackList(discToc = discToc)
+                        }
+                    }
+                }
+            }
+
+            if (ripState.isRunning || ripState.progress > 0) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text(
+                                text = "Ripping Status: ${ripState.status}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            LinearProgressIndicator(
+                                progress = { ripState.progress },
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceContainerLowest
+                            )
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(
+                                    text = "Track ${ripState.currentTrack}/${ripState.totalTracks}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = "${(ripState.progress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    // Primary Action: Gradient fill
+                    val canRip = ripState.driveStatus == "Ready" && !ripState.isTrayOperationInProgress && ripState.discToc != null
+                    Button(
+                        onClick = onStartRip,
+                        enabled = canRip,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            if (canRip) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                            if (canRip) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Start Secure Rip", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                        }
+                    }
+                }
+            }
+
+            item {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Live Terminal",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(onClick = onCopyDebugReport) {
+                            Text("Copy Debug Report")
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.7f),
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.padding(16.dp),
+                            reverseLayout = true
+                        ) {
+                            items(logs.reversed()) { log ->
+                                Text(
+                                    text = "> $log",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    color = if (log.contains("Failed", true)) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Live Terminal",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            TextButton(onClick = onCopyDebugReport) {
-                Text("Copy Debug Report")
-            }
-        }
-
-        Surface(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.7f),
-            shape = MaterialTheme.shapes.large
-        ) {
-            LazyColumn(
-                modifier = Modifier.padding(16.dp),
-                reverseLayout = true
-            ) {
-                items(logs.reversed()) { log ->
-                    Text(
-                        text = "> $log",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                        color = if (log.contains("Failed", true)) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }

@@ -107,9 +107,10 @@ class RippingService : Service() {
         fd: Int,
         driverToUse: com.bitperfect.driver.IScsiDriver,
         endpointIn: Int,
-        endpointOut: Int
+        endpointOut: Int,
+        forceRefresh: Boolean = false
     ) {
-        rippingEngine.pollDriveStatus(fd, driverToUse, endpointIn, endpointOut)
+        rippingEngine.pollDriveStatus(fd, driverToUse, endpointIn, endpointOut, forceRefresh)
     }
 
     suspend fun ejectDisc(
