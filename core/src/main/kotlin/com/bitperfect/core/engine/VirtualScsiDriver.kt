@@ -83,10 +83,13 @@ class VirtualScsiDriver(var testCd: TestCd) : IScsiDriver {
     }
 
     private fun handleModeSense10(length: Int): ByteArray {
-        val response = ByteArray(length.coerceAtLeast(30))
-        // Simulating C2 support in Read Capabilities page (0x2A)
-        // This is a bit simplified, but RippingEngine checks modeSenseResponse[10] & 0x01
-        response[10] = 0x01 // C2 supported
+        val response = ByteArray(length.coerceAtLeast(32))
+        // Mode Parameter Header (8 bytes)
+        // Page 0x2A (index 8)
+        response[8] = 0x2A
+        response[9] = 20 // Page length
+        response[10] = 0x08 // Byte 2: bit 3 = C2 Error Pointers
+        response[13] = 0x02 // Byte 5: bit 1 = Accurate Stream
         return response.take(length).toByteArray()
     }
 

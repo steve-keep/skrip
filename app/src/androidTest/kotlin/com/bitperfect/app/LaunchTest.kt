@@ -27,6 +27,9 @@ class LaunchTest {
     fun app_launches_and_displays_initial_ui() {
         // Verify that the "BitPerfect" text is displayed,
         // which indicates the MainActivity has successfully loaded the DeviceList component.
+        composeTestRule.waitUntil(20000) {
+            composeTestRule.onAllNodesWithText("BitPerfect").fetchSemanticsNodes().isNotEmpty()
+        }
         composeTestRule.onNodeWithText("BitPerfect").assertExists()
     }
 }

@@ -29,12 +29,13 @@ class VirtualScsiDriverTest {
 
     @Test
     fun testModeSense10() {
-        val command = byteArrayOf(0x5A, 0, 0x2A, 0, 0, 0, 0, 0, 30, 0)
-        val response = driver.executeScsiCommand(1, command, 30)
+        val command = byteArrayOf(0x5A, 0, 0x2A, 0, 0, 0, 0, 0, 32, 0)
+        val response = driver.executeScsiCommand(1, command, 32)
 
         assertTrue(response != null)
-        assertTrue(response!!.size >= 11)
-        assertEquals(0x01.toByte(), response[10]) // C2 Supported
+        assertTrue(response!!.size >= 14)
+        assertEquals(0x08.toByte(), response[10]) // C2 Supported (Byte 2, bit 3)
+        assertEquals(0x02.toByte(), response[13]) // Accurate Stream (Byte 5, bit 1)
     }
 
     @Test

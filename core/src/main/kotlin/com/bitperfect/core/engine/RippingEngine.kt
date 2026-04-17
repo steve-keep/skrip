@@ -334,9 +334,12 @@ class RippingEngine(
 
         var supportsC2 = false
         var accurateStream = false
-        if (modeSenseResponse != null && modeSenseResponse.size >= 12) {
-            supportsC2 = (modeSenseResponse[10].toInt() and 0x01) != 0
-            accurateStream = (modeSenseResponse[11].toInt() and 0x01) != 0 || (modeSenseResponse[11].toInt() and 0x02) != 0
+        // Page data starts after 8-byte header
+        // Byte 2 (index 10): bit 3 = C2 Error Pointers
+        // Byte 5 (index 13): bit 1 = Accurate Stream
+        if (modeSenseResponse != null && modeSenseResponse.size >= 14) {
+            supportsC2 = (modeSenseResponse[10].toInt() and 0x08) != 0
+            accurateStream = (modeSenseResponse[13].toInt() and 0x02) != 0
         }
 
         Result.success(DriveCapabilities(

@@ -504,7 +504,7 @@ fun DiagnosticDashboard(
             }
 
             // Rip Button
-            if (!ripState.isRunning && (ripState.progress == 0f || ripState.progress == 1f)) {
+            if (!ripState.isRunning) {
                 Button(
                     onClick = onStartRip,
                     enabled = ripState.driveStatus == "Ready" && !ripState.isTrayOperationInProgress,
