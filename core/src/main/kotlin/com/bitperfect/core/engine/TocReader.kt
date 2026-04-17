@@ -39,6 +39,7 @@ class TocReader(private val scsiDriver: IScsiDriver) {
             val controlAdr = response[base + 1].toInt() and 0xFF
             // Byte 1: bits 7-4 ADR, bits 3-0 Control
             val control = controlAdr and 0x0F
+            @Suppress("UNUSED_VARIABLE")
             val adr = (controlAdr shr 4) and 0x0F
 
             val trackNum = response[base + 2].toInt() and 0xFF

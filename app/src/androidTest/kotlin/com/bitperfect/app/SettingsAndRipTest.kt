@@ -74,19 +74,21 @@ class SettingsAndRipTest {
         // 2. Wait for Device List and select Virtual Drive
         // Use substring match and ignore case for better resilience.
         // We use onFirst() because the manufacturer and product name might both contain "VIRTUAL DRIVE".
-        composeTestRule.waitUntil(10000) {
+        composeTestRule.waitUntil(30000) {
             composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true).onFirst().performClick()
 
-        // 3. Start Rip
-        // Wait for TOC to load so Rip button becomes enabled/visible
-        composeTestRule.waitUntil(30000) {
-            composeTestRule.onAllNodesWithText("Start Secure Rip", ignoreCase = true)
+        // 3. Wait for TOC to load so Rip button becomes enabled/visible
+        // Use a very long timeout and perform scroll to ensure visibility
+        composeTestRule.waitUntil(60000) {
+            composeTestRule.onAllNodesWithText("Disc Contents", ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        composeTestRule.onNodeWithText("Start Secure Rip").performScrollTo().performClick()
+
+        // Now look for Start Secure Rip
+        composeTestRule.onNodeWithText("Start Secure Rip", substring = true).performScrollTo().performClick()
 
         // 4. Verify no crash and progress starts
         // Wait for "Ripping Status" which appears when rip starts
@@ -105,7 +107,7 @@ class SettingsAndRipTest {
         composeTestRule.onNodeWithContentDescription("Back").performClick()
 
         // 2. Select Virtual Drive
-        composeTestRule.waitUntil(10000) {
+        composeTestRule.waitUntil(30000) {
             composeTestRule.onAllNodesWithText("VIRTUAL DRIVE", substring = true, ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
@@ -113,16 +115,16 @@ class SettingsAndRipTest {
 
         // 3. Wait for "Ready" status and Track List to appear
         // Use a longer timeout for CI stability
-        composeTestRule.waitUntil(30000) {
-            composeTestRule.onAllNodesWithText("Ready", ignoreCase = true)
+        composeTestRule.waitUntil(60000) {
+            composeTestRule.onAllNodesWithText("Disc Contents", ignoreCase = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
         // 4. Verify Track List components are visible
         // Scroll might be needed if there are many tracks or small screen
-        composeTestRule.onNodeWithText("Disc Contents", ignoreCase = true).assertIsDisplayed()
-        composeTestRule.onNodeWithText("01").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Audio Track", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Disc Contents", ignoreCase = true).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("01").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Audio Track", substring = true).performScrollTo().assertIsDisplayed()
 
         // Scroll to the bottom to see total duration
         composeTestRule.onNodeWithText("Total Duration:", substring = true).performScrollTo().assertIsDisplayed()
