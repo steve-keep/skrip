@@ -201,7 +201,7 @@
 ---
 
 ### Story 4.1 — Compute the AccurateRip / freedb disc IDs
-- [ ] **Done**
+- [x] **Done**
 
 **As a** developer,
 **I want** functions that derive the AccurateRip 3-part disc ID and the freedb disc ID from a `DiscToc`,

@@ -360,18 +360,10 @@ class RippingEngine(
         _ripState.value = _ripState.value.copy(status = "Fetching metadata...")
         val metadata = metadataService.fetchMetadata(discId)
 
-        val freeDbId = MusicBrainzUtils.calculateFreeDbId(
-            toc.tracks.map { it.startLba.toLong() }.toLongArray(),
-            toc.leadOutLba.toLong()
-        )
-        val arDiscId = accurateRipService.calculateAccurateRipDiscId(
-            toc.tracks.map { it.startLba.toLong() }.toLongArray(),
-            toc.leadOutLba.toLong(),
-            freeDbId
-        )
+        val arDiscId = toc.computeAccurateRipId()
 
         _ripState.value = _ripState.value.copy(status = "Fetching AccurateRip data...")
-        val arData = accurateRipService.fetchAccurateRipData(arDiscId)
+        val arData = accurateRipService.fetchAccurateRipData(toc.trackCount, arDiscId)
 
         val trackResults = mutableListOf<TrackRipResult>()
 
