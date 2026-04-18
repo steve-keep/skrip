@@ -42,7 +42,7 @@ class CapabilityDetectionTest {
         composeTestRule.onNode(hasText("Settings") and hasClickAction()).performClick()
 
         // 2. Enable Virtual Drive
-        composeTestRule.onNode(hasText("Enable Virtual Drive", substring = true)).performClick()
+        composeTestRule.onNode(hasText("Enable Virtual Drive", substring = true, ignoreCase = true)).performScrollTo().performClick()
 
         // 3. Go back to Device List
         composeTestRule.onNodeWithContentDescription("Back").performClick()
