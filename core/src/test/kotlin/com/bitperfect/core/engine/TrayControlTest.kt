@@ -22,7 +22,7 @@ class TrayControlTest {
         every { android.util.Log.w(any(), any<String>()) } returns 0
         every { android.util.Log.e(any(), any<String>()) } returns 0
         every { android.util.Base64.encodeToString(any(), any()) } returns "dummy_base64"
-        coEvery { metadataService.fetchMetadata(any()) } returns emptyList()
+        coEvery { metadataService.fetchMetadata(any(), any()) } returns emptyList()
         rippingEngine = RippingEngine(scsiDriver, metadataService = metadataService)
     }
 
