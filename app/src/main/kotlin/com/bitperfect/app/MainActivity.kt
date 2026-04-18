@@ -329,7 +329,7 @@ class MainActivity : ComponentActivity() {
                                                         runDiagnostics(drive)
                                                     } else {
                                                         val permissionIntent = PendingIntent.getBroadcast(
-                                                            this@MainActivity, 0, Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_MUTABLE
+                                                            this@MainActivity, 0, Intent(ACTION_USB_PERMISSION).apply { setPackage(packageName) }, PendingIntent.FLAG_MUTABLE
                                                         )
                                                         usbDeviceManager.requestPermission(drive.device, permissionIntent)
                                                     }
