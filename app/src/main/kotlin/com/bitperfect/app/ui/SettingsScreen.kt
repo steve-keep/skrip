@@ -12,8 +12,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bitperfect.app.ui.theme.*
 import com.bitperfect.core.utils.SettingsManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,6 +31,9 @@ fun SettingsScreen(
     var isVirtualDriveEnabled by remember { mutableStateOf(settingsManager.isVirtualDriveEnabled) }
     var selectedTestCdIndex by remember { mutableStateOf(settingsManager.selectedTestCdIndex) }
     var outputFolderUri by remember { mutableStateOf(settingsManager.outputFolderUri) }
+    var namingScheme by remember { mutableStateOf(settingsManager.namingScheme) }
+    var isAccurateRipEnabled by remember { mutableStateOf(settingsManager.isAccurateRipEnabled) }
+    var isC2ErrorPointersEnabled by remember { mutableStateOf(settingsManager.isC2ErrorPointersEnabled) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val folderPickerLauncher = rememberLauncherForActivityResult(
@@ -45,43 +53,109 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = {
+                    Text(
+                        "Settings",
+                        style = Typography.headingMd.copy(color = Color.White)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                },
+                actions = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = com.bitperfect.app.R.drawable.ic_launcher_foreground),
+                            contentDescription = null,
+                            tint = AccentPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "BitPerfect",
+                            style = Typography.headingSm.copy(color = AccentPrimary)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.primary
+                    containerColor = BgBase,
+                    titleContentColor = Color.White
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = BgBase
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(1.dp) // Minimal spacing for the "slabs" feel
+            verticalArrangement = Arrangement.Top
         ) {
             item {
-                Text(
-                    text = "Storage",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
+                SettingsSectionHeader(
+                    title = "Storage & Paths",
+                    description = "Configure where and how your rips are saved."
                 )
+                SettingsCard {
+                    DestinationFolderInput(
+                        value = outputFolderUri,
+                        onClick = { folderPickerLauncher.launch(null) }
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    NamingSchemeInput(
+                        value = namingScheme,
+                        onValueChange = {
+                            namingScheme = it
+                            settingsManager.namingScheme = it
+                        }
+                    )
+                }
             }
 
             item {
-                PreferenceItem(
-                    title = "Output Folder",
-                    description = outputFolderUri ?: "Not set (using app private storage)",
-                    onClick = { folderPickerLauncher.launch(null) }
+                SettingsSectionHeader(
+                    title = "Verification",
+                    description = "Ensure bit-perfect accuracy during extraction."
                 )
+                SettingsCard {
+                    SettingsRow(
+                        title = "AccurateRip",
+                        description = "Verify rips against the online AccurateRip database to ensure zero errors.",
+                        trailingContent = {
+                            DesignSwitch(
+                                checked = isAccurateRipEnabled,
+                                onCheckedChange = {
+                                    isAccurateRipEnabled = it
+                                    settingsManager.isAccurateRipEnabled = it
+                                },
+                                isAccurateRip = true
+                            )
+                        }
+                    )
+                    SettingsRow(
+                        title = "C2 Error Pointers",
+                        description = "Utilize drive hardware to detect errors. Disable if your drive does not support C2 reliably.",
+                        showDivider = false,
+                        trailingContent = {
+                            DesignSwitch(
+                                checked = isC2ErrorPointersEnabled,
+                                onCheckedChange = {
+                                    isC2ErrorPointersEnabled = it
+                                    settingsManager.isC2ErrorPointersEnabled = it
+                                }
+                            )
+                        }
+                    )
+                }
             }
 
+            // Hidden behind "Development & Testing" just for backward compat. tests if needed
+            // But we can keep it exactly as it was, just appended
             item {
                 Text(
                     text = "Development & Testing",

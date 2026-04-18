@@ -20,6 +20,18 @@ class SettingsManager(context: Context) {
         get() = prefs.getString("outputFolderUri", null)
         set(value) = prefs.edit().putString("outputFolderUri", value).apply()
 
+    var namingScheme: String
+        get() = prefs.getString("namingScheme", "%artist% - %year% - %album%/%track% - %title%") ?: "%artist% - %year% - %album%/%track% - %title%"
+        set(value) = prefs.edit().putString("namingScheme", value).apply()
+
+    var isAccurateRipEnabled: Boolean
+        get() = prefs.getBoolean("isAccurateRipEnabled", true)
+        set(value) = prefs.edit().putBoolean("isAccurateRipEnabled", value).apply()
+
+    var isC2ErrorPointersEnabled: Boolean
+        get() = prefs.getBoolean("isC2ErrorPointersEnabled", false)
+        set(value) = prefs.edit().putBoolean("isC2ErrorPointersEnabled", value).apply()
+
     fun saveDriveCapabilities(id: String, caps: DriveCapabilities) {
         prefs.edit()
             .putString("caps_${id}_vendor", caps.vendor)
