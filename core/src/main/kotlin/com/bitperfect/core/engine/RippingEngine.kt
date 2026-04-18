@@ -568,7 +568,7 @@ class RippingEngine(
                     trackOffsets[0] = toc.leadOutLba
                     val discId = MusicBrainzUtils.calculateDiscId(toc.firstTrack, toc.lastTrack, trackOffsets)
 
-                    val metadataList = metadataService.fetchMetadata(discId)
+                    val metadataList = metadataService.fetchMetadata(discId, toc)
                     _ripState.value = _ripState.value.copy(
                         availableMetadata = metadataList,
                         selectedMetadata = if (metadataList.size == 1) metadataList.first() else null
