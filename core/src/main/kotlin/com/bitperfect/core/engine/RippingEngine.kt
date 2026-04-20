@@ -15,6 +15,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.tag.FieldKey
+import org.jaudiotagger.tag.images.ArtworkFactory
+import java.net.URL
+import android.os.ParcelFileDescriptor
+import java.io.FileInputStream
+import java.io.InputStream
 
 data class RipState(
     val isRunning: Boolean = false,
@@ -548,6 +555,9 @@ class RippingEngine(
 
             flacEncoder.finish()
 
+            // Embed metadata
+            embedMetadata(context, basePath, relativePath, selectedMeta, t)
+
             // Verify with AccurateRip
             val arMatches = arData[t]
             val arStatus = if (arMatches != null) {
@@ -729,4 +739,89 @@ class RippingEngine(
     }
 
 
+    private suspend fun embedMetadata(
+        context: Context,
+        basePath: String,
+        relativePath: String,
+        metadata: AlbumMetadata,
+        trackNumber: Int
+    ) = withContext(Dispatchers.IO) {
+        var tempFile: File? = null
+        try {
+            val file = getFileForPath(context, basePath, relativePath) ?: return@withContext
+            tempFile = if (basePath.startsWith("content://")) file else null
+
+            val af = AudioFileIO.read(file)
+            val tag = af.tagOrCreateAndSetDefault
+            tag.setField(FieldKey.ARTIST, metadata.artist)
+            tag.setField(FieldKey.ALBUM, metadata.album)
+            tag.setField(FieldKey.YEAR, metadata.year)
+            tag.setField(FieldKey.TRACK, trackNumber.toString())
+            val title = metadata.tracks.getOrNull(trackNumber - 1) ?: "Track $trackNumber"
+            tag.setField(FieldKey.TITLE, title)
+
+            if (metadata.albumArtUrl != null) {
+                try {
+                    val url = java.net.URL(metadata.albumArtUrl)
+                    val connection = url.openConnection()
+                    connection.setRequestProperty("User-Agent", "BitPerfect/1.0")
+                    val bytes = connection.getInputStream().use { it.readBytes() }
+                    val artwork = ArtworkFactory.getNew()
+                    artwork.binaryData = bytes
+                    artwork.mimeType = "image/jpeg"
+                    tag.setField(artwork)
+                } catch (e: Exception) {
+                    Log.e("RippingEngine", "Failed to embed artwork", e)
+                }
+            }
+
+            af.commit()
+
+            // if it was content uri, write back
+            if (basePath.startsWith("content://")) {
+                val pfd = getFileDescriptorForPath(context, basePath, relativePath, "w")
+                if (pfd != null) {
+                    FileOutputStream(pfd.fileDescriptor).use { out ->
+                        FileInputStream(file).use { input ->
+                            input.copyTo(out)
+                        }
+                    }
+                    pfd.close()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("RippingEngine", "Failed to embed metadata", e)
+        } finally {
+            tempFile?.delete()
+        }
+    }
+
+    private fun getFileForPath(context: Context, basePath: String, relativePath: String): File? {
+        val fullPath = "$basePath/$relativePath"
+        if (basePath.startsWith("content://")) {
+            val pfd = getFileDescriptorForPath(context, basePath, relativePath, "r") ?: return null
+            val tempFile = File.createTempFile("temp_flac", ".flac", context.cacheDir)
+            FileInputStream(pfd.fileDescriptor).use { input ->
+                FileOutputStream(tempFile).use { out ->
+                    input.copyTo(out)
+                }
+            }
+            pfd.close()
+            return tempFile
+        } else {
+            return File(fullPath)
+        }
+    }
+
+    private fun getFileDescriptorForPath(context: Context, basePath: String, relativePath: String, mode: String): ParcelFileDescriptor? {
+        val rootUri = Uri.parse(basePath)
+        var currentDoc = DocumentFile.fromTreeUri(context, rootUri) ?: return null
+
+        relativePath.split("/").forEach { part ->
+            if (part.isEmpty()) return@forEach
+            val nextDoc = currentDoc.findFile(part)
+            currentDoc = nextDoc ?: return null
+        }
+        return context.contentResolver.openFileDescriptor(currentDoc.uri, mode)
+    }
 }
