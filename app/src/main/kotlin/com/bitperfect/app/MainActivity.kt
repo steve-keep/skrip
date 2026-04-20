@@ -590,6 +590,9 @@ class MainActivity : ComponentActivity() {
                     val endpointIn = endpoints.endpointIn
                     val endpointOut = endpoints.endpointOut
                     addLog("Driver: ${driverToUse.getDriverVersion()}, fd: $fd")
+                    addLog("Device VID: ${device.vendorId}, PID: ${device.productId}")
+                    addLog("Interface Class: ${iface.interfaceClass}, Subclass: ${iface.interfaceSubclass}, Protocol: ${iface.interfaceProtocol}")
+                    addLog("Endpoint IN: $endpointIn, Endpoint OUT: $endpointOut")
 
                     performDiagnostics(driverToUse, fd, endpointIn, endpointOut)
                 } finally {
@@ -618,6 +621,9 @@ class MainActivity : ComponentActivity() {
                 }
             } else {
                 addLog("Diagnostics Failed: ${result?.exceptionOrNull()?.message}")
+                result?.exceptionOrNull()?.let { ex ->
+                    addLog("Diagnostics Error Details: ${ex.stackTraceToString()}")
+                }
             }
         }
     }
