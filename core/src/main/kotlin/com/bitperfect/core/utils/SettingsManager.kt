@@ -61,27 +61,29 @@ class SettingsManager(context: Context) {
             ),
             customTrackOffsets = IntArray(100).apply {
                 val offsets = intArrayOf(
-                    0, 18640, 35902, 52822, 67227,
-                    81270, 98123, 113298, 130543,
-                    149895, 164213, 179635
+                    150, 22767, 41887, 58317, 72102,
+                    91375, 104652, 115380, 132165,
+                    143932, 159870, 174597
                 )
                 for (i in offsets.indices) {
                     this[i + 1] = offsets[i]
                 }
-                this[0] = 197648 // Lead-out
+                this[0] = 267225 // Lead-out
             },
-            accurateRipId1 = 0x0034E486u,
-            accurateRipId2 = 0x002DC40Cu,
-            cddbId = 0xAD0B0C0C.toInt(),
+            accurateRipId1 = 0x00151845u,
+            accurateRipId2 = 0x00C504B0u,
+            cddbId = 0xA70DE90C.toInt(),
             trackCrcsV1 = intArrayOf(
-                0x4F3E8B2A, 0x9A1C4D5E.toInt(), 0x2B7F0C3D, 0xE4A19B6F.toInt(), 0x5C82D3A1,
-                0x0F4E7C9B, 0xA3D2810E.toInt(), 0x6B1F4C8D, 0x3E9A7052, 0xC4F81B3A.toInt(),
-                0x71E3490D, 0x8A2C6F14.toInt()
+                0x279cf130, 0x1129357c, 0x69471ca4, 0xe47641d0.toInt(), 0x298bfe13,
+                0x97248fcf.toInt(), 0x4c4d45b, 0xfdbc889e.toInt(), 0x2109a82d, 0x5439ff6e,
+                0xe4d98eb6.toInt(), 0x2d99e3b5
             ),
             trackCrcsV2 = intArrayOf(
-                0x1A2B3C4D
+                0x2257a3d0, 0xcf27f368.toInt(), 0xeee75fdb.toInt(), 0x5576a40f, 0xfe24b956.toInt(),
+                0xb656d13, 0xea7cd2d5.toInt(), 0x1c4a4d4a, 0xcd3b615b.toInt(), 0xa0e20c44.toInt(),
+                0x22702c9c, 0xcb1c5775.toInt()
             ),
-            confidence = intArrayOf(247, 251, 239, 244, 248, 243, 252, 246, 241, 250, 238, 245)
+            confidence = intArrayOf(18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 19)
         )
     }
 
