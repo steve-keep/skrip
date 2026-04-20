@@ -717,27 +717,23 @@ class MainActivity : ComponentActivity() {
                 }
                 try {
                     try {
-                        val iface = device.getInterface(0)
-                        if (!connection.claimInterface(iface, true)) {
-                            addLog("Failed to claim interface for ripping")
-                            return@launch
-                        }
+                    val iface = device.getInterface(0)
+                    if (!connection.claimInterface(iface, true)) {
+                        addLog("Failed to claim interface for ripping")
+                        return@launch
+                    }
 
-                        try {
-                            val fd = connection.fileDescriptor
-                            val (endpointIn, endpointOut) = getEndpoints(device)
-                            val driveModel = "${caps.vendor} ${caps.product}".trim()
-                            addLog("Successfully opened device and claimed interface 0. Starting service rip...")
-                            rippingService?.startRip(fd, outputDir, driveModel, caps, driverToUse, endpointIn, endpointOut)
-                        } catch (e: Exception) {
-                            addLog("Exception during rip setup: ${e.message}")
-                            addLog("Error details: ${android.util.Log.getStackTraceString(e)}")
-                        } finally {
-                            connection.releaseInterface(iface)
-                        }
+                    try {
+                        val fd = connection.fileDescriptor
+                        val (endpointIn, endpointOut) = getEndpoints(device)
+                        val driveModel = "${caps.vendor} ${caps.product}".trim()
+                        addLog("Successfully opened device and claimed interface 0. Starting service rip...")
+                        rippingService?.startRip(fd, outputDir, driveModel, caps, driverToUse, endpointIn, endpointOut)
                     } catch (e: Exception) {
-                        addLog("Exception claiming interface or opening device: ${e.message}")
+                        addLog("Exception during rip setup: ${e.message}")
                         addLog("Error details: ${android.util.Log.getStackTraceString(e)}")
+                    } finally {
+                        connection.releaseInterface(iface)
                     }
                 } finally {
                     connection.close()
