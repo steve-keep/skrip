@@ -64,19 +64,17 @@ class SettingsManager(context: Context) {
             artist = "Pink Floyd",
             album = "The Dark Side of the Moon",
             tracks = listOf(
-                "Speak to Me", "Breathe (In the Air)", "On the Run", "Time",
+                "Speak to Me / Breathe", "On the Run", "Time",
                 "The Great Gig in the Sky", "Money", "Us and Them",
                 "Any Colour You Like", "Brain Damage", "Eclipse"
-            )
-        ),
-        TestCd(
-            artist = "Michael Jackson",
-            album = "Thriller",
-            tracks = listOf(
-                "Wanna Be Startin' Somethin'", "Baby Be Mine", "The Girl Is Mine",
-                "Thriller", "Beat It", "Billie Jean", "Human Nature",
-                "P.Y.T. (Pretty Young Thing)", "The Lady in My Life"
-            )
+            ),
+            customTrackOffsets = IntArray(100).apply {
+                val offsets = intArrayOf(150, 17846, 28809, 60523, 81239, 110942, 147137, 170102, 187329)
+                for (i in offsets.indices) {
+                    this[i + 1] = offsets[i]
+                }
+                this[0] = 199993 // Lead-out
+            }
         ),
         TestCd(
             artist = "Fleetwood Mac",
@@ -85,7 +83,14 @@ class SettingsManager(context: Context) {
                 "Second Hand News", "Dreams", "Never Going Back Again",
                 "Don't Stop", "Go Your Own Way", "Songbird", "The Chain",
                 "You Make Loving Fun", "I Don't Want to Know", "Oh Daddy", "Gold Dust Woman"
-            )
+            ),
+            customTrackOffsets = IntArray(100).apply {
+                val offsets = intArrayOf(150, 12837, 30410, 42505, 61395, 77770, 101235, 120077, 135095, 155105, 173925)
+                for (i in offsets.indices) {
+                    this[i + 1] = offsets[i]
+                }
+                this[0] = 193680 // Lead-out
+            }
         ),
         TestCd(
             artist = "Nirvana",
@@ -95,7 +100,14 @@ class SettingsManager(context: Context) {
                 "Breed", "Lithium", "Polly", "Territorial Pissings",
                 "Drain You", "Lounge Act", "Stay Away", "On a Plain",
                 "Something in the Way"
-            )
+            ),
+            customTrackOffsets = IntArray(100).apply {
+                val offsets = intArrayOf(150, 22627, 42288, 59146, 72322, 91583, 105345, 114759, 130913, 142438, 156510, 173085)
+                for (i in offsets.indices) {
+                    this[i + 1] = offsets[i]
+                }
+                this[0] = 189073 // Lead-out
+            }
         ),
         TestCd(
             artist = "Daft Punk",
@@ -105,7 +117,14 @@ class SettingsManager(context: Context) {
                 "Within", "Instant Crush", "Lose Yourself to Dance", "Touch",
                 "Get Lucky", "Beyond", "Motherboard", "Fragments of Time",
                 "Doin' It Right", "Contact"
-            )
+            ),
+            customTrackOffsets = IntArray(100).apply {
+                val offsets = intArrayOf(150, 20111, 44033, 84888, 100583, 125301, 150654, 187313, 214660, 235123, 260383, 280629, 303792)
+                for (i in offsets.indices) {
+                    this[i + 1] = offsets[i]
+                }
+                this[0] = 334335 // Lead-out
+            }
         )
     )
 
