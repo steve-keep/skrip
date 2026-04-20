@@ -348,6 +348,9 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onMetadataSelect = { metadata ->
                                                 rippingService?.rippingEngine?.selectMetadata(metadata)
+                                            },
+                                            onCalibrateOffset = {
+                                                selectedDevice?.let { calibrateDriveOffset(it) }
                                             }
                                         )
                                     }
@@ -476,6 +479,67 @@ class MainActivity : ComponentActivity() {
     private fun stopPolling() {
         pollingJob?.cancel()
         pollingJob = null
+    }
+
+    private fun calibrateDriveOffset(drive: BitPerfectDrive) {
+        if (ripState.isRunning) return
+
+        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
+            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
+            virtualScsiDriver
+        } else {
+            scsiDriver
+        }
+
+        lifecycleScope.launch {
+            if (drive is BitPerfectDrive.Physical) {
+                val device = drive.device
+                val connection = usbDeviceManager.openDevice(device) ?: return@launch
+                try {
+                    val iface = device.getInterface(0)
+                    if (connection.claimInterface(iface, true)) {
+                        try {
+                            val fd = connection.fileDescriptor
+                            val endpoints = getEndpoints(device)
+                            val caps = detectedCapabilities ?: DriveCapabilities()
+                            val result = rippingService?.rippingEngine?.calibrateOffset(fd, caps, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
+
+                            if (result != null && result.isSuccess) {
+                                val offset = result.getOrThrow()
+                                val updatedCaps = caps.copy(readOffset = offset, offsetFromAccurateRip = false)
+                                detectedCapabilities = updatedCaps
+                                settingsManager.saveDriveCapabilities(drive.identifier, updatedCaps)
+                                addLog("Calibration Success: Found offset $offset")
+                                Toast.makeText(this@MainActivity, "Calibration successful: Offset $offset", Toast.LENGTH_LONG).show()
+                            } else {
+                                val errorMsg = result?.exceptionOrNull()?.message ?: "Unknown error"
+                                addLog("Calibration Failed: $errorMsg")
+                                Toast.makeText(this@MainActivity, "Calibration failed", Toast.LENGTH_LONG).show()
+                            }
+                        } finally {
+                            connection.releaseInterface(iface)
+                        }
+                    }
+                } finally {
+                    connection.close()
+                }
+            } else {
+                val caps = detectedCapabilities ?: DriveCapabilities()
+                val result = rippingService?.rippingEngine?.calibrateOffset(999, caps, driverToUse, 0x81, 0x01)
+                if (result != null && result.isSuccess) {
+                    val offset = result.getOrThrow()
+                    val updatedCaps = caps.copy(readOffset = offset, offsetFromAccurateRip = false)
+                    detectedCapabilities = updatedCaps
+                    settingsManager.saveDriveCapabilities(drive.identifier, updatedCaps)
+                    addLog("Calibration Success: Found offset $offset")
+                    Toast.makeText(this@MainActivity, "Calibration successful: Offset $offset", Toast.LENGTH_LONG).show()
+                } else {
+                    val errorMsg = result?.exceptionOrNull()?.message ?: "Unknown error"
+                    addLog("Calibration Failed: $errorMsg")
+                    Toast.makeText(this@MainActivity, "Calibration failed", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun runDiagnostics(drive: BitPerfectDrive) {

@@ -102,6 +102,9 @@ class CapabilityDetectionRobolectricTest {
             // And verify Read Offset
             composeTestRule.onNodeWithText("Read Offset:", substring = true).assertExists()
             composeTestRule.onNodeWithText("+123 samples (from AccurateRip database)", substring = true).assertExists()
+
+            // And verify Calibrate Offset button exists
+            composeTestRule.onNodeWithText("Calibrate Offset").assertExists()
         }
     }
 }

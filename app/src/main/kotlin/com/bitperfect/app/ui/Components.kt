@@ -266,6 +266,7 @@ fun DiagnosticDashboard(
     onLoadTray: () -> Unit,
     onCopyDebugReport: () -> Unit,
     onRetry: () -> Unit,
+    onCalibrateOffset: () -> Unit = {},
     onMetadataSelect: (AlbumMetadata?) -> Unit = {}
 ) {
     var showMetadataSheet by remember { mutableStateOf(false) }
@@ -403,6 +404,15 @@ fun DiagnosticDashboard(
                         "Read Offset: ${driveCapabilities.readOffset}"
                     }
                     Text(text = offsetText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onCalibrateOffset,
+                        enabled = ripState.driveStatus == "Ready" && ripState.discToc != null && !ripState.isRunning,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Calibrate Offset")
+                    }
                 } else {
                     Text(text = "No capabilities detected yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                 }
