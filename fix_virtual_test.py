@@ -1,4 +1,6 @@
-package com.bitperfect.core.engine
+import re
+
+content = """package com.bitperfect.core.engine
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -113,3 +115,7 @@ class VirtualScsiDriverTest {
         assertEquals(((lba + 1) % 256).toByte(), response[1])
     }
 }
+"""
+
+with open("core/src/test/kotlin/com/bitperfect/core/engine/VirtualScsiDriverTest.kt", "w") as f:
+    f.write(content)
