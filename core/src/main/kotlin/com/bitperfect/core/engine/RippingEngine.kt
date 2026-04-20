@@ -42,6 +42,7 @@ data class DriveCapabilities(
     val readOffset: Int = 0,
     val hasCache: Boolean = false,
     val cacheSizeKb: Int = 0,
+    val estimatedCacheSizeSectors: Int = 0,
     val supportsC2: Boolean = false,
     val offsetFromAccurateRip: Boolean = false
 )
