@@ -51,6 +51,8 @@ dependencies {
     // HTML parsing
     implementation 'org.jsoup:jsoup:1.17.2'
 
+    implementation 'net.jthink:jaudiotagger:3.0.1'
+
     testImplementation 'junit:junit:4.13.2'
     testImplementation "io.ktor:ktor-client-mock:$ktor_version"
     testImplementation "io.mockk:mockk:1.13.10"
