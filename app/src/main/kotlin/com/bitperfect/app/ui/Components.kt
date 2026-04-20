@@ -266,6 +266,7 @@ fun DiagnosticDashboard(
     onLoadTray: () -> Unit,
     onCopyDebugReport: () -> Unit,
     onRetry: () -> Unit,
+    onCancelRip: () -> Unit = {},
     onCalibrateOffset: () -> Unit = {},
     onMetadataSelect: (AlbumMetadata?) -> Unit = {}
 ) {
@@ -598,6 +599,19 @@ fun DiagnosticDashboard(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                    if (ripState.isRunning) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = onCancelRip,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        ) {
+                            Text("Cancel Rip")
+                        }
                     }
                 }
             }

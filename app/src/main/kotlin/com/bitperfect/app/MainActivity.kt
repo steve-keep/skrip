@@ -346,11 +346,14 @@ class MainActivity : ComponentActivity() {
                                             onRetry = {
                                                 selectedDevice?.let { retryPoll(it) }
                                             },
-                                            onMetadataSelect = { metadata ->
-                                                rippingService?.rippingEngine?.selectMetadata(metadata)
+                                            onCancelRip = {
+                                                rippingService?.cancelRip()
                                             },
                                             onCalibrateOffset = {
                                                 selectedDevice?.let { calibrateDriveOffset(it) }
+                                            },
+                                            onMetadataSelect = { metadata ->
+                                                rippingService?.rippingEngine?.selectMetadata(metadata)
                                             }
                                         )
                                     }
