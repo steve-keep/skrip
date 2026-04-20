@@ -18,7 +18,7 @@ class AccurateRipServiceTest {
         )
 
         val urlName = service.generateAccurateRipUrlName(disc.tracks.size, discId)
-        assertEquals("dBAR-012-0034e486-002dc40c-ad0b0c0c.bin", urlName)
+        assertEquals("dBAR-012-00151845-00c504b0-a70de90c.bin", urlName)
 
         val id1Hex = "%08x".format(discId.id1.toLong())
         val x = id1Hex[id1Hex.length - 1]
@@ -26,7 +26,7 @@ class AccurateRipServiceTest {
         val z = id1Hex[id1Hex.length - 3]
         val urlPath = "accuraterip/${x}/${y}/${z}/${urlName}"
 
-        assertEquals("accuraterip/6/8/4/dBAR-012-0034e486-002dc40c-ad0b0c0c.bin", urlPath)
+        assertEquals("accuraterip/5/4/8/dBAR-012-00151845-00c504b0-a70de90c.bin", urlPath)
     }
 
     @Test
@@ -35,6 +35,6 @@ class AccurateRipServiceTest {
         val expectedCrcs = disc.trackCrcsV1!!
 
         assertEquals(12, expectedCrcs.size)
-        assertEquals(0x4F3E8B2A.toInt(), expectedCrcs[0])
+        assertEquals(0x279cf130, expectedCrcs[0])
     }
 }

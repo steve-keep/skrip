@@ -16,8 +16,8 @@ fun DiscToc.computeFreedbId(): Long {
 }
 
 fun DiscToc.computeAccurateRipId(): AccurateRipDiscId {
-    val trackOffsets = this.tracks.map { it.startLba.toLong() }.toLongArray()
-    val leadOutOffset = this.leadOutLba.toLong()
+    val trackOffsets = this.tracks.map { Math.max(0L, it.startLba.toLong() - 150L) }.toLongArray()
+    val leadOutOffset = Math.max(0L, this.leadOutLba.toLong() - 150L)
     val freedbId = this.computeFreedbId()
 
     val numTracks = trackOffsets.size
