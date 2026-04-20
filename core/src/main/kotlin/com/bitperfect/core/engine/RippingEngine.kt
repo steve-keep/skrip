@@ -305,6 +305,157 @@ class RippingEngine(
         return null
     }
 
+
+    suspend fun calibrateOffset(
+        fd: Int,
+        capabilities: DriveCapabilities,
+        scsiDriver: IScsiDriver = defaultScsiDriver,
+        endpointIn: Int = 0x81,
+        endpointOut: Int = 0x01
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        _ripState.value = RipState(isRunning = true, status = "Initializing Calibration...")
+
+        val toc = TocReader(scsiDriver).readToc(fd, endpointIn, endpointOut)
+        if (toc == null) {
+            _ripState.value = _ripState.value.copy(isRunning = false, status = "Failed to read TOC")
+            return@withContext Result.failure(Exception("Failed to read TOC"))
+        }
+
+        val firstAudioTrack = toc.tracks.firstOrNull { it.isAudio }
+        if (firstAudioTrack == null) {
+            _ripState.value = _ripState.value.copy(isRunning = false, status = "No audio tracks found")
+            return@withContext Result.failure(Exception("No audio tracks found"))
+        }
+
+        val arDiscId = toc.computeAccurateRipId()
+        _ripState.value = _ripState.value.copy(status = "Fetching AccurateRip data for calibration...")
+        val arData = accurateRipService.fetchAccurateRipData(toc.trackCount, arDiscId)
+
+        val trackNumber = firstAudioTrack.number
+        val trackMatches = arData[trackNumber]
+        if (trackMatches.isNullOrEmpty()) {
+            _ripState.value = _ripState.value.copy(isRunning = false, status = "Disc not found in AccurateRip database")
+            return@withContext Result.failure(Exception("Disc not found in AccurateRip database. Try a different disc."))
+        }
+
+        val startLba = firstAudioTrack.startLba.toLong()
+        val totalTrackSectors = firstAudioTrack.durationSectors
+
+        // We will rip the track into memory (or calculate rolling CRCs)
+        // Rip the entire track + 5 sectors padding at the start and end (if possible).
+        // Since we want to find the offset, let's rip it normally but keep it in memory
+        // and calculate the shifted CRCs.
+        // Reading a whole track into memory might be too large (e.g. 5 mins = 50MB).
+        // Instead, we can read sectors and calculate the base CRC for offsets -5 to +5 sectors (-2940 to +2940 samples).
+        // Let's implement a simpler rolling CRC or just calculate it for each offset.
+
+        val scanSectors = 5
+        val samplesPerSector = 588
+        val minOffset = -scanSectors * samplesPerSector
+        val maxOffset = scanSectors * samplesPerSector
+        val totalOffsets = maxOffset - minOffset + 1
+
+        val isFirstTrack = trackNumber == toc.firstTrack
+        val isLastTrack = trackNumber == toc.lastTrack
+
+        _ripState.value = _ripState.value.copy(status = "Ripping track $trackNumber for calibration...")
+
+        val crcAccumulators = LongArray(totalOffsets) { 0L }
+        val windowSize = scanSectors * 2 + 1
+        val circularBuffer = Array(windowSize) { ByteArray(2352) }
+        var bufferHead = 0
+
+        // Pre-fill the buffer with the first `scanSectors` sectors of padding (zeros)
+        // and then the first `scanSectors + 1` sectors of actual data.
+        for (i in -scanSectors..scanSectors) {
+            if (!_ripState.value.isRunning) return@withContext Result.failure(Exception("Cancelled"))
+
+            val lba = startLba + i
+            val data = if (lba >= 0 && i < totalTrackSectors) {
+                val sectorData = readSector(fd, lba, scsiDriver, endpointIn, endpointOut, capabilities.supportsC2)
+                sectorData?.let { if (capabilities.supportsC2) stripC2(it) else it } ?: ByteArray(2352)
+            } else {
+                ByteArray(2352)
+            }
+            circularBuffer[bufferHead] = data
+            bufferHead = (bufferHead + 1) % windowSize
+        }
+
+        val tempSector = ByteArray(2352)
+
+        for (sectorIndex in 0 until totalTrackSectors) {
+            if (!_ripState.value.isRunning) return@withContext Result.failure(Exception("Cancelled"))
+
+            // For each offset, construct the shifted sector and update its CRC
+            for (offsetIndex in 0 until totalOffsets) {
+                val offsetSamples = minOffset + offsetIndex
+                val shiftBytes = offsetSamples * 4
+
+                // Which buffer index contains the start of this shifted sector?
+                // Offset is relative to the center of the window (which is the current `sectorIndex`).
+                // The center of the window in the circular buffer is `(bufferHead + scanSectors) % windowSize`.
+                // Actually, the window holds sectors `sectorIndex - scanSectors` to `sectorIndex + scanSectors`.
+                // The oldest sector is at `bufferHead`. It corresponds to `sectorIndex - scanSectors`.
+
+                val sectorOffsetBytes = scanSectors * 2352 + shiftBytes
+                val startBufferIdx = sectorOffsetBytes / 2352
+                val startByteInBuff = sectorOffsetBytes % 2352
+
+                val idx1 = (bufferHead + startBufferIdx) % windowSize
+                val data1 = circularBuffer[idx1]
+
+                if (startByteInBuff == 0) {
+                    crcAccumulators[offsetIndex] = (crcAccumulators[offsetIndex] + ChecksumUtils.calculateAccurateRipCrc(
+                        data1, sectorIndex, totalTrackSectors, isFirstTrack, isLastTrack
+                    )) and 0xFFFFFFFFL
+                } else {
+                    val idx2 = (bufferHead + startBufferIdx + 1) % windowSize
+                    val data2 = circularBuffer[idx2]
+
+                    System.arraycopy(data1, startByteInBuff, tempSector, 0, 2352 - startByteInBuff)
+                    System.arraycopy(data2, 0, tempSector, 2352 - startByteInBuff, startByteInBuff)
+
+                    crcAccumulators[offsetIndex] = (crcAccumulators[offsetIndex] + ChecksumUtils.calculateAccurateRipCrc(
+                        tempSector, sectorIndex, totalTrackSectors, isFirstTrack, isLastTrack
+                    )) and 0xFFFFFFFFL
+                }
+            }
+
+            // Advance the window: read the next sector (sectorIndex + scanSectors + 1)
+            val nextLbaOffset = sectorIndex + scanSectors + 1
+            val nextLba = startLba + nextLbaOffset
+            val nextData = if (nextLba >= 0 && nextLbaOffset < totalTrackSectors) {
+                val sectorData = readSector(fd, nextLba, scsiDriver, endpointIn, endpointOut, capabilities.supportsC2)
+                sectorData?.let { if (capabilities.supportsC2) stripC2(it) else it } ?: ByteArray(2352)
+            } else {
+                ByteArray(2352)
+            }
+
+            circularBuffer[bufferHead] = nextData
+            bufferHead = (bufferHead + 1) % windowSize
+
+            if (sectorIndex % 100 == 0) {
+                _ripState.value = _ripState.value.copy(
+                    progress = sectorIndex.toFloat() / totalTrackSectors,
+                    status = "Ripping track $trackNumber... ($sectorIndex/$totalTrackSectors)"
+                )
+            }
+        }
+
+        // Check if any CRC matches
+        for (offsetIndex in 0 until totalOffsets) {
+            val crc = crcAccumulators[offsetIndex]
+            if (trackMatches.any { it.crc == crc || it.crc2 == crc }) {
+                val matchedOffset = minOffset + offsetIndex
+                _ripState.value = _ripState.value.copy(isRunning = false, status = "Calibration complete", progress = 1f)
+                return@withContext Result.success(matchedOffset)
+            }
+        }
+
+        _ripState.value = _ripState.value.copy(isRunning = false, status = "No match found")
+        Result.failure(Exception("Could not find a matching offset within ±5 sectors. Try manual entry or a different reference disc."))
+    }
+
     suspend fun detectCapabilities(
         fd: Int,
         scsiDriver: IScsiDriver = defaultScsiDriver,
