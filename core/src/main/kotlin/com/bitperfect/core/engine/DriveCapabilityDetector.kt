@@ -3,26 +3,49 @@ package com.bitperfect.core.engine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.bitperfect.driver.IScsiDriver
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class DriveCapabilityDetector(
     private val scsiDriver: IScsiDriver,
-    private val driveOffsetService: DriveOffsetService
+    private val driveOffsetService: DriveOffsetService,
+    private val onLog: ((String) -> Unit)? = null
 ) {
+    private fun log(message: String) {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+        val timestamp = dateFormat.format(Date())
+        onLog?.invoke("[$timestamp] $message")
+    }
+
     suspend fun detect(
         fd: Int,
         endpointIn: Int,
         endpointOut: Int
     ): Result<DriveCapabilities> = withContext(Dispatchers.IO) {
+        log("Starting capability detection")
         val inquiryCmd = byteArrayOf(0x12, 0, 0, 0, 36, 0)
+        log("Executing INQUIRY command: ${inquiryCmd.joinToString(" ") { "%02X".format(it) }}")
         val inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
-            ?: return@withContext Result.failure(Exception("Inquiry failed"))
+        if (inquiryResponse == null) {
+            log("INQUIRY command failed (returned null)")
+            return@withContext Result.failure(Exception("Inquiry failed"))
+        }
+        log("INQUIRY response received (${inquiryResponse.size} bytes)")
 
         val vendor = String(inquiryResponse.sliceArray(8 until 16)).trim()
         val product = String(inquiryResponse.sliceArray(16 until 32)).trim()
         val revision = String(inquiryResponse.sliceArray(32 until 36)).trim()
 
+        log("Executing GET CONFIGURATION command")
         val getConfigCmd = byteArrayOf(0x46, 0x02, 0, 0, 0, 0, 0, 0, 0xFF.toByte(), 0)
+        log("GET CONFIGURATION command bytes: ${getConfigCmd.joinToString(" ") { "%02X".format(it) }}")
         val getConfigResponse = scsiDriver.executeScsiCommand(fd, getConfigCmd, 256, endpointIn, endpointOut)
+        if (getConfigResponse == null) {
+            log("GET CONFIGURATION command failed (returned null)")
+        } else {
+            log("GET CONFIGURATION response received (${getConfigResponse.size} bytes)")
+        }
 
         var supportsC2 = false
         var accurateStream = false
@@ -60,15 +83,19 @@ class DriveCapabilityDetector(
         }
 
         // Probe Cache using timing
+        log("Starting cache probing")
         var hasCache = false
         var cacheSizeKb = 0
 
         val readCmd = byteArrayOf(0xBE.toByte(), 0, 0, 0, 0, 0, 0, 0, 1, 0x10, 0)
 
         // Initial read of sector 0
-        scsiDriver.executeScsiCommand(fd, readCmd, 2352, endpointIn, endpointOut)
+        log("Executing initial READ CD command: ${readCmd.joinToString(" ") { "%02X".format(it) }}")
+        val initialReadResult = scsiDriver.executeScsiCommand(fd, readCmd, 2352, endpointIn, endpointOut)
+        if (initialReadResult == null) log("Initial READ CD failed (returned null)") else log("Initial READ CD success (${initialReadResult.size} bytes)")
 
         // Second read of sector 0 to check if it's cached
+        log("Executing second READ CD command for timing")
         val start1 = System.currentTimeMillis()
         scsiDriver.executeScsiCommand(fd, readCmd, 2352, endpointIn, endpointOut)
         val rtt1 = System.currentTimeMillis() - start1
