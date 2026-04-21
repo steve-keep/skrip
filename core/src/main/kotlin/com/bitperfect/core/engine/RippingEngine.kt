@@ -458,7 +458,7 @@ class RippingEngine(
         endpointIn: Int = 0x81,
         endpointOut: Int = 0x01
     ): Result<DriveCapabilities> = withContext(Dispatchers.IO) {
-        val detector = DriveCapabilityDetector(scsiDriver, driveOffsetService)
+        val detector = DriveCapabilityDetector(scsiDriver, driveOffsetService, onLog)
         detector.detect(fd, endpointIn, endpointOut)
     }
 
