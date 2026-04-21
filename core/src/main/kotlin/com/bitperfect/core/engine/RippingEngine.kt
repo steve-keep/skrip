@@ -51,7 +51,8 @@ data class DriveCapabilities(
     val cacheSizeKb: Int = 0,
     val estimatedCacheSizeSectors: Int = 0,
     val supportsC2: Boolean = false,
-    val offsetFromAccurateRip: Boolean = false
+    val offsetFromAccurateRip: Boolean = false,
+    val mmcFeatures: List<String> = emptyList()
 )
 
 class RippingEngine(
