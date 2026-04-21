@@ -411,6 +411,48 @@ class MainActivity : ComponentActivity() {
         return UsbEndpoints(endpointIn, endpointOut)
     }
 
+    private suspend fun withUsbDevice(
+        drive: BitPerfectDrive,
+        action: suspend (fd: Int, driver: com.bitperfect.driver.IScsiDriver, endpointIn: Int, endpointOut: Int) -> Unit
+    ) {
+        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
+            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
+            virtualScsiDriver
+        } else {
+            scsiDriver
+        }
+
+        if (drive is BitPerfectDrive.Physical) {
+            val device = drive.device
+            val connection = usbDeviceManager.openDevice(device)
+            if (connection == null) {
+                addLog("Failed to open device connection for ${drive.name}")
+                return
+            }
+            try {
+                val iface = getMassStorageInterface(device) ?: device.getInterface(0)
+                if (!connection.claimInterface(iface, true)) {
+                    addLog("Failed to claim interface for ${drive.name}")
+                    return
+                }
+                try {
+                    val fd = connection.fileDescriptor
+                    val endpoints = getEndpoints(device)
+                    action(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
+                } catch (e: Exception) {
+                    addLog("Error during USB operation: ${e.message}")
+                    addLog("Stack trace: ${android.util.Log.getStackTraceString(e)}")
+                } finally {
+                    connection.releaseInterface(iface)
+                }
+            } finally {
+                connection.close()
+            }
+        } else {
+            action(999, driverToUse, 0x81, 0x01)
+        }
+    }
+
     private fun startPolling(drive: BitPerfectDrive) {
         if (pollingJob != null) return
 
@@ -420,74 +462,18 @@ class MainActivity : ComponentActivity() {
                     stopPolling()
                     break
                 }
-
-                val driverToUse = if (drive is BitPerfectDrive.Virtual) {
-                    virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
-                    virtualScsiDriver
-                } else {
-                    scsiDriver
+                withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+                    rippingService?.pollStatus(fd, driverToUse, epIn, epOut)
                 }
-
-                if (drive is BitPerfectDrive.Physical) {
-                    val device = drive.device
-                    val connection = usbDeviceManager.openDevice(device)
-                    if (connection != null) {
-                        try {
-                            val iface = getMassStorageInterface(device) ?: device.getInterface(0)
-                            if (connection.claimInterface(iface, true)) {
-                                try {
-                                    val fd = connection.fileDescriptor
-                                    val endpoints = getEndpoints(device)
-                                    rippingService?.pollStatus(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
-                                } catch (e: Exception) {
-                                    addLog("Polling error: ${e.message}")
-                                } finally {
-                                    connection.releaseInterface(iface)
-                                }
-                            }
-                        } finally {
-                            connection.close()
-                        }
-                    }
-                } else {
-                    rippingService?.pollStatus(999, driverToUse, 0x81, 0x01)
-                }
-
                 kotlinx.coroutines.delay(2000)
             }
         }
     }
 
-
     private fun retryPoll(drive: BitPerfectDrive) {
-        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
-            virtualScsiDriver
-        } else {
-            scsiDriver
-        }
-
         lifecycleScope.launch(Dispatchers.IO) {
-            if (drive is BitPerfectDrive.Physical) {
-                val device = drive.device
-                val connection = usbDeviceManager.openDevice(device)
-                if (connection != null) {
-                    try {
-                        val iface = getMassStorageInterface(device) ?: device.getInterface(0)
-                        if (connection.claimInterface(iface, true)) {
-                            try {
-                                val fd = connection.fileDescriptor
-                                val endpoints = getEndpoints(device)
-                                rippingService?.pollStatus(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut, forceRefresh = true)
-                            } finally {
-                                connection.releaseInterface(iface)
-                            }
-                        }
-                    } finally {
-                        connection.close()
-                    }
-                }
-            } else {
-                rippingService?.pollStatus(999, driverToUse, 0x81, 0x01, forceRefresh = true)
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+                rippingService?.pollStatus(fd, driverToUse, epIn, epOut, forceRefresh = true)
             }
         }
     }
@@ -500,48 +486,11 @@ class MainActivity : ComponentActivity() {
     private fun calibrateDriveOffset(drive: BitPerfectDrive) {
         if (ripState.isRunning) return
 
-        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
-            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
-            virtualScsiDriver
-        } else {
-            scsiDriver
-        }
-
         lifecycleScope.launch {
-            if (drive is BitPerfectDrive.Physical) {
-                val device = drive.device
-                val connection = usbDeviceManager.openDevice(device) ?: return@launch
-                try {
-                    val iface = getMassStorageInterface(device) ?: device.getInterface(0)
-                    if (connection.claimInterface(iface, true)) {
-                        try {
-                            val fd = connection.fileDescriptor
-                            val endpoints = getEndpoints(device)
-                            val caps = detectedCapabilities ?: DriveCapabilities()
-                            val result = rippingService?.rippingEngine?.calibrateOffset(fd, caps, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
-
-                            if (result != null && result.isSuccess) {
-                                val offset = result.getOrThrow()
-                                val updatedCaps = caps.copy(readOffset = offset, offsetFromAccurateRip = false)
-                                detectedCapabilities = updatedCaps
-                                settingsManager.saveDriveCapabilities(drive.identifier, updatedCaps)
-                                addLog("Calibration Success: Found offset $offset")
-                                Toast.makeText(this@MainActivity, "Calibration successful: Offset $offset", Toast.LENGTH_LONG).show()
-                            } else {
-                                val errorMsg = result?.exceptionOrNull()?.message ?: "Unknown error"
-                                addLog("Calibration Failed: $errorMsg")
-                                Toast.makeText(this@MainActivity, "Calibration failed", Toast.LENGTH_LONG).show()
-                            }
-                        } finally {
-                            connection.releaseInterface(iface)
-                        }
-                    }
-                } finally {
-                    connection.close()
-                }
-            } else {
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
                 val caps = detectedCapabilities ?: DriveCapabilities()
-                val result = rippingService?.rippingEngine?.calibrateOffset(999, caps, driverToUse, 0x81, 0x01)
+                val result = rippingService?.rippingEngine?.calibrateOffset(fd, caps, driverToUse, epIn, epOut)
+
                 if (result != null && result.isSuccess) {
                     val offset = result.getOrThrow()
                     val updatedCaps = caps.copy(readOffset = offset, offsetFromAccurateRip = false)
@@ -564,49 +513,20 @@ class MainActivity : ComponentActivity() {
         startPolling(drive)
         addLog("Running diagnostics for ${drive.name}")
 
-        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
-            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
-            virtualScsiDriver
-        } else {
-            scsiDriver
-        }
-
-        if (drive is BitPerfectDrive.Physical) {
-            val device = drive.device
-            val connection = usbDeviceManager.openDevice(device)
-            if (connection == null) {
-                addLog("Failed to open device connection")
-                return
-            }
-
-            try {
-                val iface = getMassStorageInterface(device) ?: device.getInterface(0)
-                if (!connection.claimInterface(iface, true)) {
-                    addLog("Failed to claim interface")
-                    return
-                }
-
-                try {
-                    val fd = connection.fileDescriptor
-                    val endpoints = getEndpoints(device)
-                    val endpointIn = endpoints.endpointIn
-                    val endpointOut = endpoints.endpointOut
+        lifecycleScope.launch {
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+                if (drive is BitPerfectDrive.Physical) {
+                    val device = drive.device
+                    val iface = getMassStorageInterface(device) ?: device.getInterface(0)
                     addLog("Driver: ${driverToUse.getDriverVersion()}, fd: $fd")
                     addLog("Device VID: ${device.vendorId}, PID: ${device.productId}")
                     addLog("Interface Class: ${iface.interfaceClass}, Subclass: ${iface.interfaceSubclass}, Protocol: ${iface.interfaceProtocol}")
-                    addLog("Endpoint IN: $endpointIn, Endpoint OUT: $endpointOut")
-
-                    performDiagnostics(driverToUse, fd, endpointIn, endpointOut)
-                } finally {
-                    connection.releaseInterface(iface)
+                    addLog("Endpoint IN: $epIn, Endpoint OUT: $epOut")
+                } else {
+                    addLog("Driver: ${driverToUse.getDriverVersion()}, fd: 999")
                 }
-            } finally {
-                connection.close()
+                performDiagnostics(driverToUse, fd, epIn, epOut)
             }
-        } else {
-            // Virtual Drive
-            addLog("Driver: ${driverToUse.getDriverVersion()}, fd: 999")
-            performDiagnostics(driverToUse, 999, 0x81, 0x01)
         }
     }
 
@@ -642,33 +562,9 @@ class MainActivity : ComponentActivity() {
     private fun ejectDisc(drive: BitPerfectDrive) {
         if (ripState.isRunning) return
 
-        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
-            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
-            virtualScsiDriver
-        } else {
-            scsiDriver
-        }
-
         lifecycleScope.launch {
-            if (drive is BitPerfectDrive.Physical) {
-                val device = drive.device
-                val connection = usbDeviceManager.openDevice(device) ?: return@launch
-                try {
-                    val iface = getMassStorageInterface(device) ?: device.getInterface(0)
-                    if (connection.claimInterface(iface, true)) {
-                        try {
-                            val fd = connection.fileDescriptor
-                            val endpoints = getEndpoints(device)
-                            rippingService?.ejectDisc(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
-                        } finally {
-                            connection.releaseInterface(iface)
-                        }
-                    }
-                } finally {
-                    connection.close()
-                }
-            } else {
-                rippingService?.ejectDisc(999, driverToUse, 0x81, 0x01)
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+                rippingService?.ejectDisc(fd, driverToUse, epIn, epOut)
             }
         }
     }
@@ -676,47 +572,17 @@ class MainActivity : ComponentActivity() {
     private fun loadTray(drive: BitPerfectDrive) {
         if (ripState.isRunning) return
 
-        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
-            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
-            virtualScsiDriver
-        } else {
-            scsiDriver
-        }
-
         lifecycleScope.launch {
-            if (drive is BitPerfectDrive.Physical) {
-                val device = drive.device
-                val connection = usbDeviceManager.openDevice(device) ?: return@launch
-                try {
-                    val iface = getMassStorageInterface(device) ?: device.getInterface(0)
-                    if (connection.claimInterface(iface, true)) {
-                        try {
-                            val fd = connection.fileDescriptor
-                            val endpoints = getEndpoints(device)
-                            rippingService?.loadTray(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
-                        } finally {
-                            connection.releaseInterface(iface)
-                        }
-                    }
-                } finally {
-                    connection.close()
-                }
-            } else {
-                rippingService?.loadTray(999, driverToUse, 0x81, 0x01)
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+                rippingService?.loadTray(fd, driverToUse, epIn, epOut)
             }
         }
     }
+
     private fun startRip(drive: BitPerfectDrive) {
         if (ripState.isRunning) {
             addLog("Rip already in progress")
             return
-        }
-
-        val driverToUse = if (drive is BitPerfectDrive.Virtual) {
-            virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
-            virtualScsiDriver
-        } else {
-            scsiDriver
         }
 
         val outputDir = settingsManager.outputFolderUri ?: getExternalFilesDir(null)?.absolutePath ?: filesDir.absolutePath
@@ -726,44 +592,14 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             if (drive is BitPerfectDrive.Physical) {
-                val device = drive.device
-                addLog("Attempting to open USB device: ${device.deviceName}")
-                val connection = usbDeviceManager.openDevice(device)
-                if (connection == null) {
-                    addLog("Failed to open USB device for ripping: usbDeviceManager.openDevice returned null (permission denied or device disconnected?)")
-                    return@launch
-                }
-                try {
-                    try {
-                        val iface = getMassStorageInterface(device) ?: device.getInterface(0)
-                        if (!connection.claimInterface(iface, true)) {
-                            addLog("Failed to claim interface for ripping")
-                            return@launch
-                        }
-
-                        try {
-                            val fd = connection.fileDescriptor
-                            val (endpointIn, endpointOut) = getEndpoints(device)
-                            val driveModel = "${caps.vendor} ${caps.product}".trim()
-                            addLog("Successfully opened device and claimed interface 0. Starting service rip...")
-                            rippingService?.startRip(fd, outputDir, driveModel, caps, driverToUse, endpointIn, endpointOut)
-                        } catch (e: Exception) {
-                            addLog("Exception during rip setup: ${e.message}")
-                            addLog("Error details: ${android.util.Log.getStackTraceString(e)}")
-                        } finally {
-                            connection.releaseInterface(iface)
-                        }
-                    } catch (e: Exception) {
-                        addLog("Exception claiming interface or opening device: ${e.message}")
-                        addLog("Error details: ${android.util.Log.getStackTraceString(e)}")
-                    }
-                } finally {
-                    connection.close()
-                }
-            } else {
-                // Virtual Drive
-                val driveModel = "${caps.vendor} ${caps.product}".trim()
-                rippingService?.startRip(999, outputDir, driveModel, caps, driverToUse, 0x81, 0x01)
+                 addLog("Attempting to open USB device: ${drive.device.deviceName}")
+            }
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+                 val driveModel = "${caps.vendor} ${caps.product}".trim()
+                 if (drive is BitPerfectDrive.Physical) {
+                     addLog("Successfully opened device and claimed interface 0. Starting service rip...")
+                 }
+                 rippingService?.startRip(fd, outputDir, driveModel, caps, driverToUse, epIn, epOut)
             }
         }
     }

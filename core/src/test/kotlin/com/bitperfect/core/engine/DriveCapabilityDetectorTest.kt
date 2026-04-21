@@ -70,6 +70,7 @@ class DriveCapabilityDetectorTest {
 
         // Mock Inquiry
         val inquiryResponse = ByteArray(36)
+        inquiryResponse[0] = 0x05 // Peripheral Device Type
         "TestVend".toByteArray().copyInto(inquiryResponse, 8)
         "TestProduct     ".toByteArray().copyInto(inquiryResponse, 16)
         coEvery { mockScsiDriver.executeScsiCommand(1, match { it[0] == 0x12.toByte() }, 36, any(), any()) } returns inquiryResponse

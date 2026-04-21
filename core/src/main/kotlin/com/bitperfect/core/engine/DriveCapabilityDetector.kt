@@ -31,6 +31,13 @@ class DriveCapabilityDetector(
             log("INQUIRY command failed (returned null)")
             return@withContext Result.failure(Exception("Inquiry failed"))
         }
+
+        val peripheralDeviceType = inquiryResponse[0].toInt() and 0x1F
+        if (peripheralDeviceType != 0x05) {
+            log("Device is not a CD/DVD drive. Peripheral Device Type: 0x%02X".format(peripheralDeviceType))
+            return@withContext Result.failure(Exception("Device is not an optical drive (Type 0x05)"))
+        }
+
         log("INQUIRY response received (${inquiryResponse.size} bytes)")
 
         val vendor = String(inquiryResponse.sliceArray(8 until 16)).trim()
@@ -49,6 +56,7 @@ class DriveCapabilityDetector(
 
         var supportsC2 = false
         var accurateStream = false
+        val mmcFeatures = mutableListOf<String>()
 
         if (getConfigResponse != null && getConfigResponse.size >= 8) {
             val dataLength = ((getConfigResponse[0].toInt() and 0xFF) shl 24) or
@@ -68,11 +76,66 @@ class DriveCapabilityDetector(
                     break
                 }
 
+                when (featureCode) {
+                    0x0001 -> mmcFeatures.add("Core")
+                    0x0002 -> mmcFeatures.add("Morphing")
+                    0x0003 -> mmcFeatures.add("Removable Medium")
+                    0x0004 -> mmcFeatures.add("Write Protect")
+                    0x0010 -> mmcFeatures.add("Random Readable")
+                    0x001D -> mmcFeatures.add("Multi-Read")
+                    0x001E -> mmcFeatures.add("CD Read")
+                    0x001F -> mmcFeatures.add("DVD Read")
+                    0x0020 -> mmcFeatures.add("Random Writable")
+                    0x0021 -> mmcFeatures.add("Incremental Streaming Writable")
+                    0x0022 -> mmcFeatures.add("Sector Erasable")
+                    0x0023 -> mmcFeatures.add("Formattable")
+                    0x0024 -> mmcFeatures.add("Defect Management")
+                    0x0025 -> mmcFeatures.add("Write Once")
+                    0x0026 -> mmcFeatures.add("Restricted Overwrite")
+                    0x0027 -> mmcFeatures.add("CD-RW Write")
+                    0x0028 -> mmcFeatures.add("MRW")
+                    0x0029 -> mmcFeatures.add("Enhanced Defect Reporting")
+                    0x002A -> mmcFeatures.add("DVD+RW")
+                    0x002B -> mmcFeatures.add("DVD+R")
+                    0x002C -> mmcFeatures.add("Rigid Restricted Overwrite")
+                    0x002D -> mmcFeatures.add("CD Track at Once")
+                    0x002E -> mmcFeatures.add("CD Mastering")
+                    0x002F -> mmcFeatures.add("DVD-R/-RW Write")
+                    0x0030 -> mmcFeatures.add("DDCD Read")
+                    0x0031 -> mmcFeatures.add("DDCD-R Write")
+                    0x0032 -> mmcFeatures.add("DDCD-RW Write")
+                    0x0033 -> mmcFeatures.add("Layer Jump Recording")
+                    0x0037 -> mmcFeatures.add("CD-RW Media Write Support")
+                    0x0038 -> mmcFeatures.add("BD-R Pseudo-Overwrite")
+                    0x003B -> mmcFeatures.add("DVD+RW Dual Layer")
+                    0x0040 -> mmcFeatures.add("BD Read")
+                    0x0041 -> mmcFeatures.add("BD Write")
+                    0x0042 -> mmcFeatures.add("TSR")
+                    0x0050 -> mmcFeatures.add("HD DVD Read")
+                    0x0051 -> mmcFeatures.add("HD DVD Write")
+                    0x0080 -> mmcFeatures.add("Hybrid Disc")
+                    0x0100 -> mmcFeatures.add("Power Management")
+                    0x0101 -> mmcFeatures.add("SMART")
+                    0x0102 -> mmcFeatures.add("Embedded Changer")
+                    0x0103 -> mmcFeatures.add("CD Audio Analog Play")
+                    0x0104 -> mmcFeatures.add("Microcode Upgrade")
+                    0x0105 -> mmcFeatures.add("Timeout")
+                    0x0106 -> mmcFeatures.add("DVD-CSS")
+                    0x0107 -> mmcFeatures.add("Real-Time Streaming")
+                    0x0108 -> mmcFeatures.add("Drive Serial Number")
+                    0x010A -> mmcFeatures.add("Disc Control Blocks")
+                    0x010B -> mmcFeatures.add("DVD CPRM")
+                    0x010C -> mmcFeatures.add("Firmware Date")
+                    0x010D -> mmcFeatures.add("AACS")
+                    0x0110 -> mmcFeatures.add("VCPS")
+                }
+
                 if (featureCode == 0x0107) {
                     if (additionalLength >= 1) {
                         accurateStream = (getConfigResponse[offset + 4].toInt() and 0x02) != 0
                     }
                 } else if (featureCode == 0x0014) {
+                    mmcFeatures.add("C2 Error Pointers")
                     if (additionalLength >= 1) {
                         supportsC2 = (getConfigResponse[offset + 4].toInt() and 0x01) != 0
                     }
@@ -148,7 +211,8 @@ class DriveCapabilityDetector(
             hasCache = hasCache,
             cacheSizeKb = cacheSizeKb,
             readOffset = readOffset,
-            offsetFromAccurateRip = offsetFromAccurateRip
+            offsetFromAccurateRip = offsetFromAccurateRip,
+            mmcFeatures = mmcFeatures
         ))
     }
 }
