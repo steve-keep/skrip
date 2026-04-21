@@ -25,6 +25,52 @@ class UsbDeviceManager(private val context: Context) {
             appendLine("Vendor ID: 0x${device.vendorId.toString(16).uppercase()}")
             appendLine("Product ID: 0x${device.productId.toString(16).uppercase()}")
             appendLine("Device Class: ${device.deviceClass}")
+            appendLine("Device Subclass: ${device.deviceSubclass}")
+            appendLine("Device Protocol: ${device.deviceProtocol}")
+            appendLine("Device Name: ${device.deviceName}")
+            appendLine("Device ID: ${device.deviceId}")
+            appendLine("Version: ${device.version}")
+            try {
+                appendLine("Serial Number: ${device.serialNumber}")
+            } catch (e: SecurityException) {
+                appendLine("Serial Number: [Access Denied]")
+            }
+            appendLine("Configuration Count: ${device.configurationCount}")
+
+            for (i in 0 until device.configurationCount) {
+                val config = device.getConfiguration(i)
+                appendLine("  Configuration $i:")
+                appendLine("    Id: ${config.id}")
+                appendLine("    Name: ${config.name}")
+                appendLine("    Max Power: ${config.maxPower}")
+                appendLine("    Is Self Powered: ${config.isSelfPowered}")
+                appendLine("    Is Remote Wakeup: ${config.isRemoteWakeup}")
+                appendLine("    Interface Count: ${config.interfaceCount}")
+
+                for (j in 0 until config.interfaceCount) {
+                    val iface = config.getInterface(j)
+                    appendLine("    Interface $j:")
+                    appendLine("      Id: ${iface.id}")
+                    appendLine("      Alternate Setting: ${iface.alternateSetting}")
+                    appendLine("      Name: ${iface.name}")
+                    appendLine("      Class: ${iface.interfaceClass}")
+                    appendLine("      Subclass: ${iface.interfaceSubclass}")
+                    appendLine("      Protocol: ${iface.interfaceProtocol}")
+                    appendLine("      Endpoint Count: ${iface.endpointCount}")
+
+                    for (k in 0 until iface.endpointCount) {
+                        val endpoint = iface.getEndpoint(k)
+                        appendLine("      Endpoint $k:")
+                        appendLine("        Endpoint Number: ${endpoint.endpointNumber}")
+                        appendLine("        Address: 0x${endpoint.address.toString(16).uppercase()}")
+                        appendLine("        Direction: ${endpoint.direction}")
+                        appendLine("        Type: ${endpoint.type}")
+                        appendLine("        Attributes: ${endpoint.attributes}")
+                        appendLine("        Max Packet Size: ${endpoint.maxPacketSize}")
+                        appendLine("        Interval: ${endpoint.interval}")
+                    }
+                }
+            }
         }
     }
 
