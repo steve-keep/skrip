@@ -400,10 +400,12 @@ class MainActivity : ComponentActivity() {
         var endpointOut = 0x01
         for (i in 0 until iface.endpointCount) {
             val ep = iface.getEndpoint(i)
-            if (ep.direction == android.hardware.usb.UsbConstants.USB_DIR_IN) {
-                endpointIn = ep.address
-            } else {
-                endpointOut = ep.address
+            if (ep.type == android.hardware.usb.UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                if (ep.direction == android.hardware.usb.UsbConstants.USB_DIR_IN) {
+                    endpointIn = ep.address
+                } else {
+                    endpointOut = ep.address
+                }
             }
         }
         return UsbEndpoints(endpointIn, endpointOut)
