@@ -19,3 +19,7 @@ local.properties
 
 # Explicitly include debug keystore for stable signing
 !app/debug.keystore
+jtagger_src/
+kotlinc/
+*.jar
+Test*

@@ -768,10 +768,21 @@ class RippingEngine(
                     val connection = url.openConnection()
                     connection.setRequestProperty("User-Agent", "BitPerfect/1.0")
                     val bytes = connection.getInputStream().use { it.readBytes() }
-                    val artwork = ArtworkFactory.getNew()
-                    artwork.binaryData = bytes
-                    artwork.mimeType = "image/jpeg"
-                    tag.setField(artwork)
+                    if (tag is org.jaudiotagger.tag.flac.FlacTag) {
+                        val picture = org.jaudiotagger.audio.flac.metadatablock.MetadataBlockDataPicture(
+                            bytes,
+                            org.jaudiotagger.tag.reference.PictureTypes.DEFAULT_ID,
+                            "image/jpeg",
+                            "",
+                            0, 0, 0, 0
+                        )
+                        tag.setField(picture)
+                    } else {
+                        val artwork = ArtworkFactory.getNew()
+                        artwork.binaryData = bytes
+                        artwork.mimeType = "image/jpeg"
+                        tag.setField(artwork)
+                    }
                 } catch (e: Exception) {
                     Log.e("RippingEngine", "Failed to embed artwork", e)
                 }
