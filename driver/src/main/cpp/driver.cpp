@@ -66,41 +66,13 @@ Java_com_bitperfect_driver_ScsiDriver_initDevice(
     LOGI("Initializing device: fd %d, interface %d, epIn 0x%02X, epOut 0x%02X", fd, interfaceNumber, endpointIn, endpointOut);
 
     // 1. Send Bulk-Only Mass Storage Reset (class request)
-    struct usbdevfs_ctrltransfer ctrl = {};
-    ctrl.bRequestType = 0x21; // Class, Interface, Host-to-Device
-    ctrl.bRequest = 0xFF;     // Bulk-Only Mass Storage Reset
-    ctrl.wValue = 0;
-    ctrl.wIndex = interfaceNumber;
-    ctrl.wLength = 0;
-    ctrl.timeout = 5000;
-    if (ioctl(fd, USBDEVFS_CONTROL, &ctrl) < 0) {
-        LOGE("BOT Reset failed during init: %s", strerror(errno));
-        // Continue anyway as some devices might not support this
-    }
+    reset_bot(fd, interfaceNumber);
 
     // 2. Clear halt on IN endpoint
-    struct usbdevfs_ctrltransfer clearIn = {};
-    clearIn.bRequestType = 0x02; // Standard, Endpoint, Host-to-Device
-    clearIn.bRequest = 0x01;     // CLEAR_FEATURE
-    clearIn.wValue = 0;          // ENDPOINT_HALT
-    clearIn.wIndex = endpointIn;
-    clearIn.wLength = 0;
-    clearIn.timeout = 5000;
-    if (ioctl(fd, USBDEVFS_CONTROL, &clearIn) < 0) {
-        LOGE("Clear IN endpoint failed during init: %s", strerror(errno));
-    }
+    clear_halt(fd, endpointIn);
 
     // 3. Clear halt on OUT endpoint
-    struct usbdevfs_ctrltransfer clearOut = {};
-    clearOut.bRequestType = 0x02; // Standard, Endpoint, Host-to-Device
-    clearOut.bRequest = 0x01;     // CLEAR_FEATURE
-    clearOut.wValue = 0;          // ENDPOINT_HALT
-    clearOut.wIndex = endpointOut;
-    clearOut.wLength = 0;
-    clearOut.timeout = 5000;
-    if (ioctl(fd, USBDEVFS_CONTROL, &clearOut) < 0) {
-        LOGE("Clear OUT endpoint failed during init: %s", strerror(errno));
-    }
+    clear_halt(fd, endpointOut);
 
     return JNI_TRUE;
 }
