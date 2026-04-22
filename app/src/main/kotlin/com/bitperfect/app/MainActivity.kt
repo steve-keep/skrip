@@ -96,6 +96,10 @@ class MainActivity : ComponentActivity() {
     private var logs by mutableStateOf(listOf("App started"))
     private var detectedCapabilities by mutableStateOf<DriveCapabilities?>(null)
 
+    private var activeUsbDevice: UsbDevice? = null
+    private var activeUsbInterface: android.hardware.usb.UsbInterface? = null
+    private var activeUsbConnection: android.hardware.usb.UsbDeviceConnection? = null
+
     private var ripState by mutableStateOf(RipState())
 
     private val serviceConnection = object : ServiceConnection {
@@ -425,7 +429,7 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun withUsbDevice(
         drive: BitPerfectDrive,
-        action: suspend (fd: Int, driver: com.bitperfect.driver.IScsiDriver, endpointIn: Int, endpointOut: Int) -> Unit
+        action: suspend (fd: Int, driver: com.bitperfect.driver.IScsiDriver, endpointIn: Int, endpointOut: Int, interfaceId: Int) -> Unit
     ) {
         val driverToUse = if (drive is BitPerfectDrive.Virtual) {
             virtualScsiDriver.testCd = settingsManager.getSelectedTestCd()
@@ -436,36 +440,66 @@ class MainActivity : ComponentActivity() {
 
         if (drive is BitPerfectDrive.Physical) {
             val device = drive.device
-            addLog("Requesting openDevice for ${drive.name}...")
-            val connection = usbDeviceManager.openDevice(device)
-            if (connection == null) {
-                addLog("Failed to open device connection for ${drive.name}. Has permission? ${usbDeviceManager.hasPermission(device)}")
-                return
-            }
-            addLog("Device opened successfully: ${device.deviceName}")
-            try {
+
+            if (activeUsbDevice != device) {
+                closeCachedUsbConnection()
+
+                addLog("Requesting openDevice for ${drive.name}...")
+                val connection = usbDeviceManager.openDevice(device)
+                if (connection == null) {
+                    addLog("Failed to open device connection for ${drive.name}. Has permission? ${usbDeviceManager.hasPermission(device)}")
+                    return
+                }
+                addLog("Device opened successfully: ${device.deviceName}")
                 val iface = getMassStorageInterface(device) ?: device.getInterface(0)
                 if (!connection.claimInterface(iface, true)) {
                     addLog("Failed to claim interface for ${drive.name}")
+                    connection.close()
                     return
                 }
-                try {
-                    val fd = connection.fileDescriptor
-                    val endpoints = getEndpoints(device)
-                    driverToUse.initDevice(fd, iface.id, endpoints.endpointIn, endpoints.endpointOut)
-                    action(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
-                } catch (e: Exception) {
-                    addLog("Error during USB operation: ${e.message}")
-                    addLog("Stack trace: ${android.util.Log.getStackTraceString(e)}")
-                } finally {
-                    connection.releaseInterface(iface)
-                }
-            } finally {
-                connection.close()
+
+                activeUsbDevice = device
+                activeUsbInterface = iface
+                activeUsbConnection = connection
+            }
+
+            val connection = activeUsbConnection!!
+            val iface = activeUsbInterface!!
+
+            try {
+                val fd = connection.fileDescriptor
+                val endpoints = getEndpoints(device)
+                driverToUse.initDevice(fd, iface.id, endpoints.endpointIn, endpoints.endpointOut)
+                action(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut, iface.id)
+            } catch (e: Exception) {
+                addLog("Error during USB operation: ${e.message}")
+                addLog("Stack trace: ${android.util.Log.getStackTraceString(e)}")
+                // If there's an I/O error, it might be a disconnection, close cached connection to be safe
+                closeCachedUsbConnection()
             }
         } else {
-            action(999, driverToUse, 0x81, 0x01)
+            action(999, driverToUse, 0x81, 0x01, 0)
         }
+    }
+
+    private fun closeCachedUsbConnection() {
+        activeUsbConnection?.let { connection ->
+            activeUsbInterface?.let { iface ->
+                try {
+                    connection.releaseInterface(iface)
+                } catch (e: Exception) {
+                    // Ignore release errors
+                }
+            }
+            try {
+                connection.close()
+            } catch (e: Exception) {
+                // Ignore close errors
+            }
+        }
+        activeUsbConnection = null
+        activeUsbInterface = null
+        activeUsbDevice = null
     }
 
     private fun startPolling(drive: BitPerfectDrive) {
@@ -477,7 +511,7 @@ class MainActivity : ComponentActivity() {
                     stopPolling()
                     break
                 }
-                withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+                withUsbDevice(drive) { fd, driverToUse, epIn, epOut, _ ->
                     rippingService?.pollStatus(fd, driverToUse, epIn, epOut)
                 }
                 kotlinx.coroutines.delay(2000)
@@ -487,7 +521,7 @@ class MainActivity : ComponentActivity() {
 
     private fun retryPoll(drive: BitPerfectDrive) {
         lifecycleScope.launch(Dispatchers.IO) {
-            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut, _ ->
                 rippingService?.pollStatus(fd, driverToUse, epIn, epOut, forceRefresh = true)
             }
         }
@@ -502,7 +536,7 @@ class MainActivity : ComponentActivity() {
         if (ripState.isRunning) return
 
         lifecycleScope.launch {
-            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut, _ ->
                 val caps = detectedCapabilities ?: DriveCapabilities()
                 val result = rippingService?.rippingEngine?.calibrateOffset(fd, caps, driverToUse, epIn, epOut)
 
@@ -529,7 +563,7 @@ class MainActivity : ComponentActivity() {
         addLog("Running diagnostics for ${drive.name}")
 
         lifecycleScope.launch {
-            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut, interfaceId ->
                 if (drive is BitPerfectDrive.Physical) {
                     val device = drive.device
                     val iface = getMassStorageInterface(device) ?: device.getInterface(0)
@@ -540,14 +574,14 @@ class MainActivity : ComponentActivity() {
                 } else {
                     addLog("Driver: ${driverToUse.getDriverVersion()}, fd: 999")
                 }
-                performDiagnostics(driverToUse, fd, epIn, epOut)
+                performDiagnostics(driverToUse, fd, epIn, epOut, interfaceId)
             }
         }
     }
 
-    private fun performDiagnostics(driver: com.bitperfect.driver.IScsiDriver, fd: Int, endpointIn: Int, endpointOut: Int) {
+    private fun performDiagnostics(driver: com.bitperfect.driver.IScsiDriver, fd: Int, endpointIn: Int, endpointOut: Int, interfaceId: Int) {
         lifecycleScope.launch {
-            val result = rippingService?.rippingEngine?.detectCapabilities(fd, driver, endpointIn, endpointOut)
+            val result = rippingService?.rippingEngine?.detectCapabilities(fd, driver, endpointIn, endpointOut, interfaceId)
             if (result != null && result.isSuccess) {
                 val caps = result.getOrThrow()
                 detectedCapabilities = caps
@@ -604,7 +638,7 @@ class MainActivity : ComponentActivity() {
         if (ripState.isRunning) return
 
         lifecycleScope.launch {
-            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut, _ ->
                 rippingService?.ejectDisc(fd, driverToUse, epIn, epOut)
             }
         }
@@ -614,7 +648,7 @@ class MainActivity : ComponentActivity() {
         if (ripState.isRunning) return
 
         lifecycleScope.launch {
-            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut, _ ->
                 rippingService?.loadTray(fd, driverToUse, epIn, epOut)
             }
         }
@@ -635,7 +669,7 @@ class MainActivity : ComponentActivity() {
             if (drive is BitPerfectDrive.Physical) {
                  addLog("Attempting to open USB device: ${drive.device.deviceName}")
             }
-            withUsbDevice(drive) { fd, driverToUse, epIn, epOut ->
+            withUsbDevice(drive) { fd, driverToUse, epIn, epOut, _ ->
                  val driveModel = "${caps.vendor} ${caps.product}".trim()
                  if (drive is BitPerfectDrive.Physical) {
                      addLog("Successfully opened device and claimed interface 0. Starting service rip...")
@@ -646,6 +680,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onDestroy() {
         super.onDestroy()
+        closeCachedUsbConnection()
         unregisterReceiver(usbReceiver)
         if (isBound) {
             unbindService(serviceConnection)

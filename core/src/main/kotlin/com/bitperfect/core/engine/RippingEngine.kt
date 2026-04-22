@@ -12,6 +12,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -457,10 +458,11 @@ class RippingEngine(
         fd: Int,
         scsiDriver: IScsiDriver = defaultScsiDriver,
         endpointIn: Int = 0x81,
-        endpointOut: Int = 0x01
+        endpointOut: Int = 0x01,
+        interfaceId: Int = 0
     ): Result<DriveCapabilities> = withContext(Dispatchers.IO) {
         val detector = DriveCapabilityDetector(scsiDriver, driveOffsetService, onLog)
-        detector.detect(fd, endpointIn, endpointOut)
+        detector.detect(fd, endpointIn, endpointOut, interfaceId)
     }
 
     suspend fun fullRip(
@@ -692,7 +694,9 @@ class RippingEngine(
             _ripState.value = _ripState.value.copy(driveStatus = "Ready", tocError = null)
 
             if (_ripState.value.discToc == null || forceRefresh) {
-                val toc = TocReader(scsiDriver).readToc(fd, endpointIn, endpointOut)
+                val toc = withContext(NonCancellable) {
+                    TocReader(scsiDriver).readToc(fd, endpointIn, endpointOut)
+                }
                 if (toc != null) {
                     _ripState.value = _ripState.value.copy(discToc = toc)
 
