@@ -26,9 +26,16 @@ class DriveCapabilityDetector(
         log("Starting capability detection")
         val inquiryCmd = byteArrayOf(0x12, 0, 0, 0, 36, 0)
         log("Executing INQUIRY command: ${inquiryCmd.joinToString(" ") { "%02X".format(it) }}")
-        val inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
+        var inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
         if (inquiryResponse == null) {
-            log("INQUIRY command failed (returned null)")
+            log("INQUIRY failed, attempting BOT reset and retry")
+            scsiDriver.initDevice(fd, 0, endpointIn, endpointOut) // Assuming interface id 0 for reset as fallback if we don't have it, but initDevice signature takes interface id
+            Thread.sleep(500)
+            inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
+        }
+
+        if (inquiryResponse == null) {
+            log("INQUIRY command failed again after retry (returned null)")
             return@withContext Result.failure(Exception("Inquiry failed"))
         }
 

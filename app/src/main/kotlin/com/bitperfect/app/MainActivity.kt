@@ -98,6 +98,10 @@ class MainActivity : ComponentActivity() {
 
     private var ripState by mutableStateOf(RipState())
 
+    private var cachedConnection: android.hardware.usb.UsbDeviceConnection? = null
+    private var cachedDevice: android.hardware.usb.UsbDevice? = null
+    private var cachedInterface: android.hardware.usb.UsbInterface? = null
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: android.content.ComponentName?, service: IBinder?) {
             val binder = service as RippingService.LocalBinder
@@ -436,32 +440,49 @@ class MainActivity : ComponentActivity() {
 
         if (drive is BitPerfectDrive.Physical) {
             val device = drive.device
-            addLog("Requesting openDevice for ${drive.name}...")
-            val connection = usbDeviceManager.openDevice(device)
-            if (connection == null) {
-                addLog("Failed to open device connection for ${drive.name}. Has permission? ${usbDeviceManager.hasPermission(device)}")
-                return
-            }
-            addLog("Device opened successfully: ${device.deviceName}")
-            try {
-                val iface = getMassStorageInterface(device) ?: device.getInterface(0)
-                if (!connection.claimInterface(iface, true)) {
-                    addLog("Failed to claim interface for ${drive.name}")
+
+            // Check if we already have an open connection for this device
+            if (cachedDevice?.deviceId != device.deviceId) {
+                // Close old connection if there is one for a different device
+                cachedConnection?.let {
+                    cachedInterface?.let { iface -> it.releaseInterface(iface) }
+                    it.close()
+                }
+                cachedConnection = null
+                cachedDevice = null
+                cachedInterface = null
+
+                addLog("Requesting openDevice for ${drive.name}...")
+                val newConnection = usbDeviceManager.openDevice(device)
+                if (newConnection == null) {
+                    addLog("Failed to open device connection for ${drive.name}. Has permission? ${usbDeviceManager.hasPermission(device)}")
                     return
                 }
-                try {
-                    val fd = connection.fileDescriptor
-                    val endpoints = getEndpoints(device)
-                    driverToUse.initDevice(fd, iface.id, endpoints.endpointIn, endpoints.endpointOut)
-                    action(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
-                } catch (e: Exception) {
-                    addLog("Error during USB operation: ${e.message}")
-                    addLog("Stack trace: ${android.util.Log.getStackTraceString(e)}")
-                } finally {
-                    connection.releaseInterface(iface)
+                addLog("Device opened successfully: ${device.deviceName}")
+
+                val iface = getMassStorageInterface(device) ?: device.getInterface(0)
+                if (!newConnection.claimInterface(iface, true)) {
+                    addLog("Failed to claim interface for ${drive.name}")
+                    newConnection.close()
+                    return
                 }
-            } finally {
-                connection.close()
+
+                cachedConnection = newConnection
+                cachedDevice = device
+                cachedInterface = iface
+            }
+
+            val connection = cachedConnection!!
+            val iface = cachedInterface!!
+
+            try {
+                val fd = connection.fileDescriptor
+                val endpoints = getEndpoints(device)
+                driverToUse.initDevice(fd, iface.id, endpoints.endpointIn, endpoints.endpointOut)
+                action(fd, driverToUse, endpoints.endpointIn, endpoints.endpointOut)
+            } catch (e: Exception) {
+                addLog("Error during USB operation: ${e.message}")
+                addLog("Stack trace: ${android.util.Log.getStackTraceString(e)}")
             }
         } else {
             action(999, driverToUse, 0x81, 0x01)
@@ -651,5 +672,12 @@ class MainActivity : ComponentActivity() {
             unbindService(serviceConnection)
             isBound = false
         }
+        cachedConnection?.let {
+            cachedInterface?.let { iface -> it.releaseInterface(iface) }
+            it.close()
+        }
+        cachedConnection = null
+        cachedDevice = null
+        cachedInterface = null
     }
 }

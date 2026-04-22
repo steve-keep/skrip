@@ -83,8 +83,8 @@ class UsbDeviceManager(private val context: Context, private val onLog: ((String
         // Log device info for debugging
         log("Checking device: ${device.deviceName}, Class: ${device.deviceClass}, Subclass: ${device.deviceSubclass}")
 
-        // Check at device level
-        if (device.deviceClass == UsbConstants.USB_CLASS_MASS_STORAGE) {
+        // Check at device level (rare for subclass to be set correctly here, but we check)
+        if (device.deviceClass == UsbConstants.USB_CLASS_MASS_STORAGE && device.deviceSubclass == 2) {
             return true
         }
 
@@ -92,7 +92,7 @@ class UsbDeviceManager(private val context: Context, private val onLog: ((String
         for (i in 0 until device.interfaceCount) {
             val usbInterface = device.getInterface(i)
             log("  Interface $i: Class: ${usbInterface.interfaceClass}, Subclass: ${usbInterface.interfaceSubclass}")
-            if (usbInterface.interfaceClass == UsbConstants.USB_CLASS_MASS_STORAGE) {
+            if (usbInterface.interfaceClass == UsbConstants.USB_CLASS_MASS_STORAGE && usbInterface.interfaceSubclass == 2) {
                 return true
             }
         }

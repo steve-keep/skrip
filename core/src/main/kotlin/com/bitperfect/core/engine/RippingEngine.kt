@@ -692,7 +692,9 @@ class RippingEngine(
             _ripState.value = _ripState.value.copy(driveStatus = "Ready", tocError = null)
 
             if (_ripState.value.discToc == null || forceRefresh) {
-                val toc = TocReader(scsiDriver).readToc(fd, endpointIn, endpointOut)
+                val toc = withContext(kotlinx.coroutines.NonCancellable) {
+                    TocReader(scsiDriver).readToc(fd, endpointIn, endpointOut)
+                }
                 if (toc != null) {
                     _ripState.value = _ripState.value.copy(discToc = toc)
 
