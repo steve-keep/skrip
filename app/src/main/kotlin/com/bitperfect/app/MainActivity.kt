@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import com.bitperfect.app.ui.DeviceList
 import com.bitperfect.app.ui.SettingsScreen
 import com.bitperfect.app.ui.theme.BitPerfectTheme
+import com.bitperfect.app.usb.UsbDriveDetector
 import com.bitperfect.core.utils.SettingsManager
 
 private sealed class ScreenState {
@@ -51,6 +52,7 @@ private sealed class ScreenState {
 
 class MainActivity : ComponentActivity() {
     private lateinit var settingsManager: SettingsManager
+    private lateinit var usbDriveDetector: UsbDriveDetector
 
     private var isShowingSettings by mutableStateOf(false)
 
@@ -59,8 +61,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         settingsManager = SettingsManager(this)
+        usbDriveDetector = UsbDriveDetector(this)
 
         setContent {
+            val driveInfo by usbDriveDetector.deviceInfo.collectAsState()
+
             BitPerfectTheme {
 
                 Scaffold(
@@ -146,7 +151,7 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     is ScreenState.DeviceList -> {
-                                        DeviceList()
+                                        DeviceList(driveInfo = driveInfo)
                                     }
                                 }
                             }
@@ -155,5 +160,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        usbDriveDetector.destroy()
     }
 }
