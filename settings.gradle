@@ -1,2 +1,2 @@
-include ':app', ':core', ':driver'
+include ':app', ':core'
 rootProject.name = "BitPerfect"
