@@ -21,14 +21,21 @@ class DriveCapabilityDetector(
     suspend fun detect(
         fd: Int,
         endpointIn: Int,
-        endpointOut: Int
+        endpointOut: Int,
+        interfaceId: Int = 0
     ): Result<DriveCapabilities> = withContext(Dispatchers.IO) {
         log("Starting capability detection")
         val inquiryCmd = byteArrayOf(0x12, 0, 0, 0, 36, 0)
         log("Executing INQUIRY command: ${inquiryCmd.joinToString(" ") { "%02X".format(it) }}")
-        val inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
+        var inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
         if (inquiryResponse == null) {
-            log("INQUIRY command failed (returned null)")
+            log("INQUIRY failed, attempting BOT reset and retry")
+            scsiDriver.initDevice(fd, interfaceId, endpointIn, endpointOut)
+            Thread.sleep(500)
+            inquiryResponse = scsiDriver.executeScsiCommand(fd, inquiryCmd, 36, endpointIn, endpointOut)
+        }
+        if (inquiryResponse == null) {
+            log("INQUIRY command failed after retry (returned null)")
             return@withContext Result.failure(Exception("Inquiry failed"))
         }
 
