@@ -100,10 +100,8 @@ class UsbDriveDetectorTest {
         detector.scanForDevices()
 
         assertNotNull(detector)
-        // With checkAndRequestPermission mock logic, if it has permission, it starts interrogation in thread.
-        // It's possible shadowUsbManager thinks it has permission, and synchronously runs Thread and fails interrogation due to lack of mock endpoints.
-        // We see it's Error("Could not find mass storage endpoints"), which means it had permission and started interrogation.
-        // To fix this without complex mock synchronization, we can just assert it left the initial NoDrive state.
+        // Sleep briefly to let the coroutine/thread update the state
+        Thread.sleep(100)
         assertTrue(detector.driveStatus.value != DriveStatus.NoDrive)
     }
 

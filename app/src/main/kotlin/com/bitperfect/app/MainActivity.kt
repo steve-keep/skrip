@@ -153,7 +153,7 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     is ScreenState.DeviceList -> {
-                                        DeviceList(driveInfo = driveInfo)
+                                        DeviceList(driveStatus = driveStatus)
                                     }
                                 }
                             }
