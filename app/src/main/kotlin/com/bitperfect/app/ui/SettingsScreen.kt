@@ -10,23 +10,32 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bitperfect.app.BuildConfig
 import com.bitperfect.core.utils.SettingsManager
 import com.bitperfect.app.usb.DriveInfo
+import com.bitperfect.core.services.DriveOffsetRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
+    driveOffsetRepository: DriveOffsetRepository,
     driveInfo: DriveInfo?
 ) {
     var outputFolderUri by remember { mutableStateOf(settingsManager.outputFolderUri) }
+
+    // Observe the offsets to trigger recomposition when data loads
+    val offsets by driveOffsetRepository.offsets.collectAsState()
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val folderPickerLauncher = rememberLauncherForActivityResult(
@@ -150,19 +159,89 @@ fun SettingsScreen(
 
         item {
             Column {
+                val driveStateColor: Color
+                val driveStateIcon: androidx.compose.ui.graphics.vector.ImageVector?
+                val driveStateIconTint: Color
+                val driveStateTextColor: Color
+
+                if (driveInfo != null) {
+                    if (offsets == null) {
+                        // Data not loaded yet, use neutral state
+                        driveStateColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        driveStateIcon = null
+                        driveStateIconTint = MaterialTheme.colorScheme.onSurface
+                        driveStateTextColor = MaterialTheme.colorScheme.onSurface
+                    } else {
+                        val offsetInfo = driveOffsetRepository.findOffset(driveInfo.vendorId, driveInfo.productId)
+                        if (offsetInfo != null) {
+                            if (offsetInfo.offset != null) {
+                                // Match found with offset != null -> Green background
+                                driveStateColor = Color(0xFF4CAF50)
+                                driveStateIcon = Icons.Default.CheckCircle
+                                driveStateIconTint = Color.White
+                                driveStateTextColor = Color.White
+                            } else {
+                                // Match found with offset == null -> Yellow background
+                                driveStateColor = Color(0xFFFFC107)
+                                driveStateIcon = Icons.Default.Warning
+                                driveStateIconTint = Color.Black
+                                driveStateTextColor = Color.Black
+                            }
+                        } else {
+                            // No match found -> Red background
+                            driveStateColor = Color(0xFFF44336)
+                            driveStateIcon = Icons.Default.Report
+                            driveStateIconTint = Color.White
+                            driveStateTextColor = Color.White
+                        }
+                    }
+                } else {
+                    driveStateColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    driveStateIcon = null
+                    driveStateIconTint = MaterialTheme.colorScheme.onSurface
+                    driveStateTextColor = MaterialTheme.colorScheme.onSurface
+                }
+
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    color = driveStateColor,
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
                 ) {
                     Box(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = if (driveInfo != null) "${driveInfo.vendorId} ${driveInfo.productId}" else "No drive connected",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (driveInfo != null) {
+                                    val vendor = driveInfo.vendorId.ifBlank { "" }
+                                    val product = driveInfo.productId.ifBlank { "" }
+                                    val displayName = if (vendor.isNotBlank() && product.isNotBlank()) {
+                                        "$vendor $product"
+                                    } else if (vendor.isNotBlank()) {
+                                        vendor
+                                    } else if (product.isNotBlank()) {
+                                        product
+                                    } else {
+                                        "Unknown Drive"
+                                    }
+                                    displayName
+                                } else "No drive connected",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = driveStateTextColor
+                            )
+                            if (driveStateIcon != null) {
+                                Icon(
+                                    imageVector = driveStateIcon,
+                                    contentDescription = null,
+                                    tint = driveStateIconTint,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
