@@ -1,3 +1,4 @@
+cat << 'INNER_EOF' > app/src/main/kotlin/com/bitperfect/app/ui/SettingsScreen.kt
 package com.bitperfect.app.ui
 
 import android.content.Intent
@@ -33,9 +34,6 @@ fun SettingsScreen(
     driveInfo: DriveInfo?
 ) {
     var outputFolderUri by remember { mutableStateOf(settingsManager.outputFolderUri) }
-
-    // Observe the offsets to trigger recomposition when data loads
-    val offsets by driveOffsetRepository.offsets.collectAsState()
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val folderPickerLauncher = rememberLauncherForActivityResult(
@@ -165,35 +163,27 @@ fun SettingsScreen(
                 val driveStateTextColor: Color
 
                 if (driveInfo != null) {
-                    if (offsets == null) {
-                        // Data not loaded yet, use neutral state
-                        driveStateColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                        driveStateIcon = null
-                        driveStateIconTint = MaterialTheme.colorScheme.onSurface
-                        driveStateTextColor = MaterialTheme.colorScheme.onSurface
-                    } else {
-                        val offsetInfo = driveOffsetRepository.findOffset(driveInfo.vendorId, driveInfo.productId)
-                        if (offsetInfo != null) {
-                            if (offsetInfo.offset != null) {
-                                // Match found with offset != null -> Green background
-                                driveStateColor = Color(0xFF4CAF50)
-                                driveStateIcon = Icons.Default.CheckCircle
-                                driveStateIconTint = Color.White
-                                driveStateTextColor = Color.White
-                            } else {
-                                // Match found with offset == null -> Yellow background
-                                driveStateColor = Color(0xFFFFC107)
-                                driveStateIcon = Icons.Default.Warning
-                                driveStateIconTint = Color.Black
-                                driveStateTextColor = Color.Black
-                            }
-                        } else {
-                            // No match found -> Red background
-                            driveStateColor = Color(0xFFF44336)
-                            driveStateIcon = Icons.Default.Report
+                    val offsetInfo = driveOffsetRepository.findOffset(driveInfo.vendorId, driveInfo.productId)
+                    if (offsetInfo != null) {
+                        if (offsetInfo.offset != null) {
+                            // Match found with offset != null -> Green background
+                            driveStateColor = Color(0xFF4CAF50)
+                            driveStateIcon = Icons.Default.CheckCircle
                             driveStateIconTint = Color.White
                             driveStateTextColor = Color.White
+                        } else {
+                            // Match found with offset == null -> Yellow background
+                            driveStateColor = Color(0xFFFFC107)
+                            driveStateIcon = Icons.Default.Warning
+                            driveStateIconTint = Color.Black
+                            driveStateTextColor = Color.Black
                         }
+                    } else {
+                        // No match found -> Red background
+                        driveStateColor = Color(0xFFF44336)
+                        driveStateIcon = Icons.Default.Report
+                        driveStateIconTint = Color.White
+                        driveStateTextColor = Color.White
                     }
                 } else {
                     driveStateColor = MaterialTheme.colorScheme.surfaceContainerHighest
@@ -350,3 +340,4 @@ private fun sendDebugInfo(context: android.content.Context, driveInfo: DriveInfo
     val shareIntent = Intent.createChooser(sendIntent, null)
     context.startActivity(shareIntent)
 }
+INNER_EOF

@@ -1,3 +1,4 @@
+cat << 'INNER_EOF' > app/src/main/kotlin/com/bitperfect/app/ui/SettingsScreen.kt
 package com.bitperfect.app.ui
 
 import android.content.Intent
@@ -350,3 +351,4 @@ private fun sendDebugInfo(context: android.content.Context, driveInfo: DriveInfo
     val shareIntent = Intent.createChooser(sendIntent, null)
     context.startActivity(shareIntent)
 }
+INNER_EOF
