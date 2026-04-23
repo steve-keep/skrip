@@ -172,7 +172,7 @@ class UsbDriveDetector(private val context: Context) {
 
             val infoResult = inquiryCommand.execute()
             if (infoResult == null) {
-                _driveStatus.value = DriveStatus.Error("SCSI INQUIRY failed")
+                _driveStatus.value = DriveStatus.Error("Could not interrogate device")
                 return
             }
 
