@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -30,7 +31,8 @@ import com.bitperfect.core.services.DriveOffsetRepository
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
-    driveOffsetRepository: DriveOffsetRepository
+    driveOffsetRepository: DriveOffsetRepository,
+    onNavigateToAbout: () -> Unit = {}
 ) {
     val driveStatus by DeviceStateManager.driveStatus.collectAsState()
     val driveInfo = driveStatus.info
@@ -39,7 +41,6 @@ fun SettingsScreen(
 
     // Observe the offsets to trigger recomposition when data loads
     val offsets by driveOffsetRepository.offsets.collectAsState()
-    val generatedAt by driveOffsetRepository.generatedAt.collectAsState()
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val folderPickerLauncher = rememberLauncherForActivityResult(
@@ -283,36 +284,37 @@ fun SettingsScreen(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                if (generatedAt != null) {
-                    Text(
-                        text = "Offsets downloaded: $generatedAt",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToAbout() }
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = "About",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
                     )
-                } else {
-                    Text(
-                        text = "Offsets not downloaded",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "About",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Navigate",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
-        }
-
-        item {
-            Text(
-                text = "Version ${BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-            )
         }
     }
 }

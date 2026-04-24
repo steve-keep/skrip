@@ -39,6 +39,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
+import com.bitperfect.app.ui.AboutScreen
 import com.bitperfect.app.ui.DeviceList
 import com.bitperfect.app.ui.SettingsScreen
 import com.bitperfect.app.ui.theme.BitPerfectTheme
@@ -52,6 +53,7 @@ import com.bitperfect.core.services.DriveOffsetRepository
 private sealed class ScreenState {
     object DeviceList : ScreenState()
     object Settings : ScreenState()
+    object About : ScreenState()
 }
 
 
@@ -60,7 +62,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var settingsManager: SettingsManager
 
-    private var isShowingSettings by mutableStateOf(false)
+    private var currentScreen by mutableStateOf<ScreenState>(ScreenState.DeviceList)
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,8 +98,9 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     Text(
-                                        text = when {
-                                            isShowingSettings -> "Settings"
+                                        text = when (currentScreen) {
+                                            is ScreenState.Settings -> "Settings"
+                                            is ScreenState.About -> "About"
                                             else -> "BitPerfect"
                                         },
                                         modifier = androidx.compose.ui.Modifier.semantics { testTag = "status_label" }
@@ -105,9 +108,13 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             navigationIcon = {
-                                if (isShowingSettings) {
+                                if (currentScreen != ScreenState.DeviceList) {
                                     IconButton(onClick = {
-                                        isShowingSettings = false
+                                        currentScreen = when (currentScreen) {
+                                            is ScreenState.About -> ScreenState.Settings
+                                            is ScreenState.Settings -> ScreenState.DeviceList
+                                            else -> ScreenState.DeviceList
+                                        }
                                     }) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -117,8 +124,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             actions = {
-                                if (!isShowingSettings) {
-                                    IconButton(onClick = { isShowingSettings = true }) {
+                                if (currentScreen == ScreenState.DeviceList) {
+                                    IconButton(onClick = { currentScreen = ScreenState.Settings }) {
                                         Icon(
                                             imageVector = Icons.Default.Settings,
                                             contentDescription = "Settings"
@@ -136,18 +143,23 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     Row(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
                         Box(modifier = Modifier.weight(1f).safeDrawingPadding()) {
-                            val currentState = when {
-                                isShowingSettings -> ScreenState.Settings
-                                else -> ScreenState.DeviceList
-                            }
-
                             AnimatedContent(
-                                targetState = currentState,
+                                targetState = currentScreen,
                                 transitionSpec = {
-                                    if (targetState is ScreenState.Settings) {
+                                    fun getIndex(state: ScreenState) = when (state) {
+                                        ScreenState.DeviceList -> 0
+                                        ScreenState.Settings -> 1
+                                        ScreenState.About -> 2
+                                    }
+                                    val targetIndex = getIndex(targetState)
+                                    val initialIndex = getIndex(initialState)
+
+                                    if (targetIndex > initialIndex) {
+                                        // Sliding forward (right to left)
                                         (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
                                             slideOutHorizontally { width -> -width } + fadeOut())
                                     } else {
+                                        // Sliding backward (left to right)
                                         (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
                                             slideOutHorizontally { width -> width } + fadeOut())
                                     }.using(SizeTransform(clip = false))
@@ -158,11 +170,19 @@ class MainActivity : ComponentActivity() {
                                     is ScreenState.Settings -> {
                                         SettingsScreen(
                                             driveOffsetRepository = driveOffsetRepository,
-                                            settingsManager = settingsManager
+                                            settingsManager = settingsManager,
+                                            onNavigateToAbout = {
+                                                currentScreen = ScreenState.About
+                                            }
                                         )
                                     }
                                     is ScreenState.DeviceList -> {
                                         DeviceList(driveStatus = driveStatus)
+                                    }
+                                    is ScreenState.About -> {
+                                        AboutScreen(
+                                            driveOffsetRepository = driveOffsetRepository
+                                        )
                                     }
                                 }
                             }
