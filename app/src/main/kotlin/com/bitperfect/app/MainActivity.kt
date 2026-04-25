@@ -2,12 +2,15 @@ package com.bitperfect.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -41,6 +44,8 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import com.bitperfect.app.ui.AboutScreen
 import com.bitperfect.app.ui.DeviceList
+import com.bitperfect.app.ui.HomeViewModel
+import com.bitperfect.app.ui.LibrarySection
 import com.bitperfect.app.ui.SettingsScreen
 import com.bitperfect.app.ui.theme.BitPerfectTheme
 import com.bitperfect.app.usb.DeviceStateManager
@@ -61,6 +66,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var driveOffsetRepository: DriveOffsetRepository
 
     private lateinit var settingsManager: SettingsManager
+
+    private val homeViewModel: HomeViewModel by viewModels()
 
     private var currentScreen by mutableStateOf<ScreenState>(ScreenState.DeviceList)
 
@@ -110,11 +117,15 @@ class MainActivity : ComponentActivity() {
                             navigationIcon = {
                                 if (currentScreen != ScreenState.DeviceList) {
                                     IconButton(onClick = {
-                                        currentScreen = when (currentScreen) {
+                                        val nextScreen = when (currentScreen) {
                                             is ScreenState.About -> ScreenState.Settings
                                             is ScreenState.Settings -> ScreenState.DeviceList
                                             else -> ScreenState.DeviceList
                                         }
+                                        if (nextScreen == ScreenState.DeviceList) {
+                                            homeViewModel.loadLibrary()
+                                        }
+                                        currentScreen = nextScreen
                                     }) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -177,7 +188,16 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     is ScreenState.DeviceList -> {
-                                        DeviceList(driveStatus = driveStatus)
+                                        Column(modifier = Modifier.fillMaxSize()) {
+                                            DeviceList(
+                                                driveStatus = driveStatus,
+                                                modifier = Modifier.fillMaxWidth().weight(1f)
+                                            )
+                                            LibrarySection(
+                                                viewModel = homeViewModel,
+                                                modifier = Modifier.fillMaxWidth().weight(1f)
+                                            )
+                                        }
                                     }
                                     is ScreenState.About -> {
                                         AboutScreen(

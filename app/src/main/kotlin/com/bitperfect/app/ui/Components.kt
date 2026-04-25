@@ -1,20 +1,30 @@
 package com.bitperfect.app.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import com.bitperfect.app.usb.DriveStatus
+import com.bitperfect.app.R
 
 @Composable
-fun DeviceList(driveStatus: DriveStatus) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+fun DeviceList(modifier: Modifier = Modifier, driveStatus: DriveStatus) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when (driveStatus) {
             is DriveStatus.NoDrive -> DriveStatusCard(
                 icon = Icons.Outlined.UsbOff,
@@ -52,6 +62,89 @@ fun DeviceList(driveStatus: DriveStatus) {
                 headline = "Drive Error",
                 subtitle = driveStatus.message
             )
+        }
+    }
+}
+
+@Composable
+fun LibrarySection(viewModel: HomeViewModel, modifier: Modifier = Modifier) {
+    val isConfigured by viewModel.isOutputFolderConfigured.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val filteredArtists by viewModel.filteredArtists.collectAsState()
+
+    Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        if (!isConfigured) {
+            Box(Modifier.fillMaxSize()) {
+                Text(
+                    "Set an output folder in Settings to browse your library",
+                    Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.searchQuery.value = it },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                placeholder = { Text("Search artists or albums") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                singleLine = true
+            )
+
+            if (filteredArtists.isEmpty()) {
+                Box(Modifier.fillMaxSize()) {
+                    Text(
+                        "No albums found",
+                        Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
+                    items(filteredArtists, key = { it.id }) { artist ->
+                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                            Text(
+                                text = artist.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(artist.albums, key = { it.id }) { album ->
+                                    Column(
+                                        modifier = Modifier.width(80.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        AsyncImage(
+                                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                                .data(album.artUri)
+                                                .crossfade(true)
+                                                .diskCachePolicy(CachePolicy.ENABLED)
+                                                .build(),
+                                            contentDescription = album.title,
+                                            modifier = Modifier.size(80.dp),
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                            placeholder = androidx.compose.ui.res.painterResource(id = R.drawable.app_logo),
+                                            error = androidx.compose.ui.res.painterResource(id = R.drawable.app_logo)
+                                        )
+                                        Text(
+                                            text = album.title,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

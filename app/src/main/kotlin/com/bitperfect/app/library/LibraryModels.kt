@@ -1,0 +1,6 @@
+package com.bitperfect.app.library
+
+import android.net.Uri
+
+data class AlbumInfo(val id: Long, val title: String, val artUri: Uri?)
+data class ArtistInfo(val id: Long, val name: String, val albums: List<AlbumInfo>)
