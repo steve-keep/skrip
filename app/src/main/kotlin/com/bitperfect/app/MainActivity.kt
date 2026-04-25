@@ -2,13 +2,15 @@ package com.bitperfect.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
+import androidx.activity.viewModels
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -22,8 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -44,14 +44,15 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import com.bitperfect.app.ui.AboutScreen
 import com.bitperfect.app.ui.DeviceList
+import com.bitperfect.app.ui.HomeViewModel
+import com.bitperfect.app.ui.LibrarySection
 import com.bitperfect.app.ui.SettingsScreen
 import com.bitperfect.app.ui.theme.BitPerfectTheme
-import com.bitperfect.app.usb.UsbDriveDetector
+import com.bitperfect.app.usb.DeviceStateManager
 import com.bitperfect.core.utils.SettingsManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import com.bitperfect.core.services.DriveOffsetRepository
-import org.koin.android.ext.android.inject
 
 
 private sealed class ScreenState {
@@ -62,9 +63,11 @@ private sealed class ScreenState {
 
 
 class MainActivity : ComponentActivity() {
-    private val driveOffsetRepository: DriveOffsetRepository by inject()
-    private val settingsManager: SettingsManager by inject()
-    private val usbDriveDetector: UsbDriveDetector by inject()
+    private lateinit var driveOffsetRepository: DriveOffsetRepository
+
+    private lateinit var settingsManager: SettingsManager
+
+    private val homeViewModel: HomeViewModel by viewModels()
 
     private var currentScreen by mutableStateOf<ScreenState>(ScreenState.DeviceList)
 
@@ -72,49 +75,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        driveOffsetRepository = DriveOffsetRepository(this)
         lifecycleScope.launch {
             driveOffsetRepository.initialize()
         }
 
+        settingsManager = SettingsManager(this)
+
         setContent {
-
-            val driveStatus by usbDriveDetector.driveStatus.collectAsState()
-
-
-            var showExitDialog by remember { mutableStateOf(false) }
-
-            BackHandler {
-                when (currentScreen) {
-                    is ScreenState.About -> currentScreen = ScreenState.Settings
-                    is ScreenState.Settings -> currentScreen = ScreenState.DeviceList
-                    is ScreenState.DeviceList -> showExitDialog = true
-                }
-            }
-
+            val driveStatus by DeviceStateManager.driveStatus.collectAsState()
 
             BitPerfectTheme {
-                if (showExitDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showExitDialog = false },
-                        title = { Text("Exit App") },
-                        text = { Text("Are you sure you want to close the app?") },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                showExitDialog = false
-                                finish()
-                            }) {
-                                Text("Exit")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = {
-                                showExitDialog = false
-                            }) {
-                                Text("Cancel")
-                            }
-                        }
-                    )
-                }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -146,11 +117,15 @@ class MainActivity : ComponentActivity() {
                             navigationIcon = {
                                 if (currentScreen != ScreenState.DeviceList) {
                                     IconButton(onClick = {
-                                        currentScreen = when (currentScreen) {
+                                        val nextScreen = when (currentScreen) {
                                             is ScreenState.About -> ScreenState.Settings
                                             is ScreenState.Settings -> ScreenState.DeviceList
                                             else -> ScreenState.DeviceList
                                         }
+                                        if (nextScreen == ScreenState.DeviceList) {
+                                            homeViewModel.loadLibrary()
+                                        }
+                                        currentScreen = nextScreen
                                     }) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -213,7 +188,16 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     is ScreenState.DeviceList -> {
-                                        DeviceList(driveStatus = driveStatus)
+                                        Column(modifier = Modifier.fillMaxSize()) {
+                                            DeviceList(
+                                                driveStatus = driveStatus,
+                                                modifier = Modifier.fillMaxWidth().weight(1f)
+                                            )
+                                            LibrarySection(
+                                                viewModel = homeViewModel,
+                                                modifier = Modifier.fillMaxWidth().weight(1f)
+                                            )
+                                        }
                                     }
                                     is ScreenState.About -> {
                                         AboutScreen(
