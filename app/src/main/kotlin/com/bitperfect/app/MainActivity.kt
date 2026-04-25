@@ -43,11 +43,12 @@ import com.bitperfect.app.ui.AboutScreen
 import com.bitperfect.app.ui.DeviceList
 import com.bitperfect.app.ui.SettingsScreen
 import com.bitperfect.app.ui.theme.BitPerfectTheme
-import com.bitperfect.app.usb.DeviceStateManager
+import com.bitperfect.app.usb.UsbDriveDetector
 import com.bitperfect.core.utils.SettingsManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import com.bitperfect.core.services.DriveOffsetRepository
+import org.koin.android.ext.android.inject
 
 
 private sealed class ScreenState {
@@ -58,9 +59,9 @@ private sealed class ScreenState {
 
 
 class MainActivity : ComponentActivity() {
-    private lateinit var driveOffsetRepository: DriveOffsetRepository
-
-    private lateinit var settingsManager: SettingsManager
+    private val driveOffsetRepository: DriveOffsetRepository by inject()
+    private val settingsManager: SettingsManager by inject()
+    private val usbDriveDetector: UsbDriveDetector by inject()
 
     private var currentScreen by mutableStateOf<ScreenState>(ScreenState.DeviceList)
 
@@ -68,15 +69,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        driveOffsetRepository = DriveOffsetRepository(this)
         lifecycleScope.launch {
             driveOffsetRepository.initialize()
         }
 
-        settingsManager = SettingsManager(this)
-
         setContent {
-            val driveStatus by DeviceStateManager.driveStatus.collectAsState()
+            val driveStatus by usbDriveDetector.driveStatus.collectAsState()
 
             BitPerfectTheme {
 
