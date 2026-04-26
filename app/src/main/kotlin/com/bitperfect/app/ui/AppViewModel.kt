@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bitperfect.app.library.ArtistInfo
+import com.bitperfect.app.player.PlayerRepository
 import com.bitperfect.app.library.TrackInfo
 import com.bitperfect.app.library.LibraryRepository
 import com.bitperfect.core.utils.SettingsManager
@@ -18,7 +19,10 @@ import kotlinx.coroutines.launch
 import com.bitperfect.app.usb.DeviceStateManager
 import com.bitperfect.app.usb.DriveStatus
 
-class AppViewModel(application: Application) : AndroidViewModel(application) {
+class AppViewModel(
+    application: Application,
+    private val playerRepository: PlayerRepository = PlayerRepository(application)
+) : AndroidViewModel(application) {
 
     private val settingsManager = SettingsManager(application)
     private val libraryRepository = LibraryRepository(application)
@@ -41,6 +45,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val selectedAlbumTitle: StateFlow<String?> = _selectedAlbumTitle
 
     val driveStatus: StateFlow<DriveStatus> = DeviceStateManager.driveStatus
+
+    val isPlaying: StateFlow<Boolean> = playerRepository.isPlaying
+    val currentMediaId: StateFlow<String?> = playerRepository.currentMediaId
+    val positionMs: StateFlow<Long> = playerRepository.positionMs
+
+
+
+
+
 
     val filteredArtists: StateFlow<List<ArtistInfo>> = combine(artists, searchQuery) { artistsList, query ->
         if (query.isBlank()) {
@@ -65,6 +78,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadLibrary()
+        viewModelScope.launch {
+            playerRepository.connect()
+        }
     }
 
     fun loadLibrary() {
@@ -92,4 +108,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun clearTracks() {
         _tracks.value = emptyList()
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        playerRepository.disconnect()
+    }
+
+    fun playAlbum(tracks: List<TrackInfo>) {
+        playerRepository.playAlbum(tracks)
+    }
+
+    fun playTrack(tracks: List<TrackInfo>, index: Int) {
+        playerRepository.playTrack(tracks, index)
+    }
+
+    fun togglePlayPause() {
+        playerRepository.togglePlayPause()
+    }
+
+    fun seekTo(ms: Long) {
+        playerRepository.seekTo(ms)
+    }
+
+    fun skipNext() {
+        playerRepository.skipNext()
+    }
+
+    fun skipPrev() {
+        playerRepository.skipPrev()
+    }
+
 }

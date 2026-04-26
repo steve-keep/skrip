@@ -1,14 +1,21 @@
 package com.bitperfect.app.ui
 
 import android.app.Application
+import android.content.Context
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import androidx.test.core.app.ApplicationProvider
 import com.bitperfect.app.library.ArtistInfo
 import com.bitperfect.app.library.TrackInfo
+import com.bitperfect.app.player.PlayerRepository
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito.mock
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -21,7 +28,14 @@ class AppViewModelTest {
     @Before
     fun setup() {
         val application = ApplicationProvider.getApplicationContext<Application>()
-        viewModel = AppViewModel(application)
+        val mockController = mock(MediaController::class.java)
+        val fakeFactory = object : PlayerRepository.MediaControllerFactory {
+            override fun build(context: Context, token: SessionToken): ListenableFuture<MediaController> {
+                return Futures.immediateFuture(mockController)
+            }
+        }
+        val fakeRepository = PlayerRepository(application, fakeFactory)
+        viewModel = AppViewModel(application, fakeRepository)
     }
 
     @Test
