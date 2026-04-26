@@ -1,0 +1,86 @@
+package com.bitperfect.app.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun TrackListScreen(
+    viewModel: HomeViewModel,
+    albumId: Long,
+    onBack: () -> Unit
+) {
+    BackHandler {
+        onBack()
+    }
+
+    LaunchedEffect(albumId) {
+        viewModel.loadTracks(albumId)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearTracks()
+        }
+    }
+
+    val tracks by viewModel.tracks.collectAsState()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (tracks.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 16.dp)
+            ) {
+                items(tracks, key = { it.id }) { track ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = track.trackNumber.toString().padStart(2, '0'),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = track.title,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            val durationSeconds = track.durationMs / 1000
+                            val minutes = durationSeconds / 60
+                            val seconds = durationSeconds % 60
+                            Text(
+                                text = String.format("%d:%02d", minutes, seconds),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = Color(0x14FFFFFF))
+                }
+            }
+        }
+    }
+}

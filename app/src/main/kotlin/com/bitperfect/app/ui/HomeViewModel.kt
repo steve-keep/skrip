@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bitperfect.app.library.ArtistInfo
+import com.bitperfect.app.library.TrackInfo
 import com.bitperfect.app.library.LibraryRepository
 import com.bitperfect.core.utils.SettingsManager
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isOutputFolderConfigured = MutableStateFlow(false)
     val isOutputFolderConfigured: StateFlow<Boolean> = _isOutputFolderConfigured
+
+    private val _tracks = MutableStateFlow<List<TrackInfo>>(emptyList())
+    val tracks: StateFlow<List<TrackInfo>> = _tracks
 
     val filteredArtists: StateFlow<List<ArtistInfo>> = combine(artists, searchQuery) { artistsList, query ->
         if (query.isBlank()) {
@@ -60,5 +64,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val loadedArtists = libraryRepository.getLibrary(uriString)
             _artists.value = loadedArtists
         }
+    }
+
+    fun loadTracks(albumId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _tracks.value = libraryRepository.getTracksForAlbum(albumId)
+        }
+    }
+
+    fun clearTracks() {
+        _tracks.value = emptyList()
     }
 }

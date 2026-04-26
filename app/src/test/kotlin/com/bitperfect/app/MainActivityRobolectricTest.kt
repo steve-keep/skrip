@@ -22,7 +22,7 @@ class MainActivityRobolectricTest {
     @Test
     fun testMainActivityLaunchesAndShowsBitPerfect() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            scenario.onActivity { activity ->
+            scenario.onActivity { _ ->
                 composeTestRule.onNodeWithTag("status_label").assertIsDisplayed()
             }
         }

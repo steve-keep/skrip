@@ -64,6 +64,7 @@ private sealed class ScreenState {
     object DeviceList : ScreenState()
     object Settings : ScreenState()
     object About : ScreenState()
+    data class TrackList(val albumId: Long, val albumTitle: String) : ScreenState()
 }
 
 
@@ -129,9 +130,10 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     Text(
-                                        text = when (currentScreen) {
+                                        text = when (val state = currentScreen) {
                                             is ScreenState.Settings -> "Settings"
                                             is ScreenState.About -> "About"
+                                            is ScreenState.TrackList -> state.albumTitle
                                             else -> "BitPerfect"
                                         },
                                         modifier = androidx.compose.ui.Modifier.semantics { testTag = "status_label" }
@@ -144,6 +146,7 @@ class MainActivity : ComponentActivity() {
                                         val nextScreen = when (currentScreen) {
                                             is ScreenState.About -> ScreenState.Settings
                                             is ScreenState.Settings -> ScreenState.DeviceList
+                                            is ScreenState.TrackList -> ScreenState.DeviceList
                                             else -> ScreenState.DeviceList
                                         }
                                         if (nextScreen == ScreenState.DeviceList) {
@@ -185,6 +188,7 @@ class MainActivity : ComponentActivity() {
                                         ScreenState.DeviceList -> 0
                                         ScreenState.Settings -> 1
                                         ScreenState.About -> 2
+                                        is ScreenState.TrackList -> 1
                                     }
                                     val targetIndex = getIndex(targetState)
                                     val initialIndex = getIndex(initialState)
@@ -219,13 +223,23 @@ class MainActivity : ComponentActivity() {
                                             )
                                             LibrarySection(
                                                 viewModel = homeViewModel,
-                                                modifier = Modifier.fillMaxWidth().weight(1f)
+                                                modifier = Modifier.fillMaxWidth().weight(1f),
+                                                onAlbumClick = { album ->
+                                                    currentScreen = ScreenState.TrackList(album.id, album.title)
+                                                }
                                             )
                                         }
                                     }
                                     is ScreenState.About -> {
                                         AboutScreen(
                                             driveOffsetRepository = driveOffsetRepository
+                                        )
+                                    }
+                                    is ScreenState.TrackList -> {
+                                        com.bitperfect.app.ui.TrackListScreen(
+                                            viewModel = homeViewModel,
+                                            albumId = state.albumId,
+                                            onBack = { currentScreen = ScreenState.DeviceList }
                                         )
                                     }
                                 }

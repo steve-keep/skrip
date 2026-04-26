@@ -165,6 +165,7 @@ class UsbDriveDetectorTest {
         // Setup initial state to be something else
         val statusField = UsbDriveDetector::class.java.getDeclaredField("_driveStatus")
         statusField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
         val stateFlow = statusField.get(detector) as kotlinx.coroutines.flow.MutableStateFlow<DriveStatus>
         stateFlow.value = DriveStatus.Connecting()
 
@@ -206,8 +207,6 @@ class UsbDriveDetectorTest {
         org.mockito.Mockito.`when`(usbInterface.getEndpoint(1)).thenReturn(outEp)
 
         // Manager openDevice returns null
-        val usbManager = context.getSystemService(android.content.Context.USB_SERVICE) as android.hardware.usb.UsbManager
-
         // Instead of shadow, let's explicitly add the device to shadow manager
         // without setting up open device correctly, so connection is null.
         // Actually, by default robolectric will return a mocked UsbDeviceConnection if we don't configure shadow specifically
@@ -236,6 +235,7 @@ class UsbDriveDetectorTest {
 
         val statusField = UsbDriveDetector::class.java.getDeclaredField("_driveStatus")
         statusField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
         val stateFlow = statusField.get(detector) as kotlinx.coroutines.flow.MutableStateFlow<DriveStatus>
         stateFlow.value = DriveStatus.NotOptical
         // We simulate it by just setting the state, as real interrogateDevice needs open device
@@ -249,6 +249,7 @@ class UsbDriveDetectorTest {
 
         val statusField = UsbDriveDetector::class.java.getDeclaredField("_driveStatus")
         statusField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
         val stateFlow = statusField.get(detector) as kotlinx.coroutines.flow.MutableStateFlow<DriveStatus>
         val info = DriveInfo("VENDOR", "PRODUCT", true)
         val emptyState = DriveStatus.Empty(info)
@@ -264,6 +265,7 @@ class UsbDriveDetectorTest {
 
         val statusField = UsbDriveDetector::class.java.getDeclaredField("_driveStatus")
         statusField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
         val stateFlow = statusField.get(detector) as kotlinx.coroutines.flow.MutableStateFlow<DriveStatus>
         val info = DriveInfo("VENDOR", "PRODUCT", true)
         stateFlow.value = DriveStatus.DiscReady(info)
