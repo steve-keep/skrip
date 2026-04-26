@@ -87,4 +87,42 @@ class LibraryRepository(private val context: Context) {
             )
         }
     }
+
+    fun getTracksForAlbum(albumId: Long): List<TrackInfo> {
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.TRACK,
+            MediaStore.Audio.Media.DURATION
+        )
+
+        val selection = "${MediaStore.Audio.Media.ALBUM_ID} = ?"
+        val selectionArgs = arrayOf(albumId.toString())
+        val sortOrder = "${MediaStore.Audio.Media.TRACK} ASC"
+
+        val tracks = mutableListOf<TrackInfo>()
+
+        context.contentResolver.query(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            sortOrder
+        )?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            val trackCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
+            val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                val title = cursor.getString(titleCol) ?: "Unknown Track"
+                val trackNumber = cursor.getInt(trackCol)
+                val durationMs = cursor.getLong(durationCol)
+                tracks.add(TrackInfo(id, title, trackNumber, durationMs))
+            }
+        }
+
+        return tracks
+    }
 }

@@ -22,8 +22,10 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import com.bitperfect.app.usb.DriveStatus
 import com.bitperfect.app.R
+import com.bitperfect.app.library.AlbumInfo
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
@@ -71,7 +73,11 @@ fun DeviceList(modifier: Modifier = Modifier, driveStatus: DriveStatus) {
 }
 
 @Composable
-fun LibrarySection(viewModel: HomeViewModel, modifier: Modifier = Modifier) {
+fun LibrarySection(
+    viewModel: HomeViewModel,
+    modifier: Modifier = Modifier,
+    onAlbumClick: (AlbumInfo) -> Unit = {}
+) {
     val isConfigured by viewModel.isOutputFolderConfigured.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val filteredArtists by viewModel.filteredArtists.collectAsState()
@@ -132,7 +138,9 @@ fun LibrarySection(viewModel: HomeViewModel, modifier: Modifier = Modifier) {
                             ) {
                                 items(artist.albums, key = { it.id }) { album ->
                                     Column(
-                                        modifier = Modifier.width(80.dp),
+                                        modifier = Modifier
+                                            .width(80.dp)
+                                            .clickable { onAlbumClick(album) },
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         AsyncImage(
