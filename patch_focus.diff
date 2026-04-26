@@ -1,0 +1,28 @@
+--- app/src/main/kotlin/com/bitperfect/app/ui/Components.kt
++++ app/src/main/kotlin/com/bitperfect/app/ui/Components.kt
+@@ -19,6 +19,9 @@
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.collectAsState
+ import androidx.compose.runtime.getValue
++import androidx.compose.ui.platform.LocalFocusManager
++import androidx.compose.foundation.gestures.detectTapGestures
++import androidx.compose.ui.input.pointer.pointerInput
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.graphics.vector.ImageVector
+@@ -79,7 +82,15 @@
+     val searchQuery by viewModel.searchQuery.collectAsState()
+     val filteredArtists by viewModel.filteredArtists.collectAsState()
++    val focusManager = LocalFocusManager.current
+
+-    Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp)) {
++    Column(
++        modifier = modifier
++            .fillMaxSize()
++            .padding(horizontal = 16.dp)
++            .pointerInput(Unit) {
++                detectTapGestures(onTap = { focusManager.clearFocus() })
++            }
++    ) {
+         if (!isConfigured) {
+             Box(Modifier.fillMaxSize()) {

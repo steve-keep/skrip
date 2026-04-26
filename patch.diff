@@ -1,0 +1,10 @@
+--- app/src/main/kotlin/com/bitperfect/app/ui/Components.kt
++++ app/src/main/kotlin/com/bitperfect/app/ui/Components.kt
+@@ -112,7 +112,7 @@
+                 shape = RoundedCornerShape(14.dp),
+                 colors = OutlinedTextFieldDefaults.colors(
+                     focusedBorderColor = Color(0xFF00FF00),
+-                    unfocusedBorderColor = Color(0xFF00FF00)
++                    unfocusedBorderColor = Color.DarkGray
+                 )
+             )
