@@ -1,0 +1,13 @@
+<<<<<<< SEARCH
+        // Trigger the clickable to cover playTrack call inside itemsIndexed
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+=======
+        // Trigger the clickable to cover playTrack call inside itemsIndexed
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+>>>>>>> REPLACE

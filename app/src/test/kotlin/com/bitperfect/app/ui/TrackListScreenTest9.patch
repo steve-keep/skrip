@@ -1,0 +1,14 @@
+<<<<<<< SEARCH
+        // Get the parent Row which has the clickable modifier and click it
+        import androidx.compose.ui.test.onParent
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).onParent().performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+=======
+        // Get the parent Row which has the clickable modifier and click it
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).onParent().performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+>>>>>>> REPLACE

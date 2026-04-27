@@ -1,0 +1,19 @@
+<<<<<<< SEARCH
+        // Trigger the clickable to cover playTrack call inside itemsIndexed
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).assertExists()
+
+        // Get the parent Row which has the clickable modifier and click it
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).onParent().performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+=======
+        // Trigger the clickable to cover playTrack call inside itemsIndexed
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).assertExists()
+
+        // Use a test tag to confidently click the row
+        composeTestRule.onNodeWithText("01").onParent().performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+>>>>>>> REPLACE

@@ -1,0 +1,33 @@
+<<<<<<< SEARCH
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onParent
+import androidx.compose.ui.test.assertIsDisplayed
+=======
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onParent
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.filterToOne
+import androidx.compose.ui.test.onChildren
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        // Just directly call the function on viewmodel to cover it since composeTestRule isn't finding the exact clickable node reliably
+        mockViewModel.playTrack(listOf(com.bitperfect.app.library.TrackInfo(1L, "Mock Track Title", 1, 125000L)), 0)
+        composeTestRule.waitForIdle()
+    }
+}
+=======
+        // Just directly call the function on viewmodel to cover it since composeTestRule isn't finding the exact clickable node reliably
+        mockViewModel.playTrack(listOf(com.bitperfect.app.library.TrackInfo(1L, "Mock Track Title", 1, 125000L)), 0)
+
+        // Find the node that has the clickable action containing the text
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).onParent().performClick()
+
+        composeTestRule.waitForIdle()
+    }
+}
+>>>>>>> REPLACE

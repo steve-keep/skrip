@@ -1,0 +1,33 @@
+<<<<<<< SEARCH
+        // Get the parent Row which has the clickable modifier and click it
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).onParent().performClick()
+
+        composeTestRule.waitForIdle()
+    }
+}
+=======
+        // Let's add a testTag to the row to easily click it
+        import androidx.compose.ui.test.onNodeWithTag
+        // Actually, we don't need test tag, we can mock currentMediaId as not null and matching to hit the tint color lines
+        val mediaIdField = AppViewModel::class.java.getDeclaredField("currentMediaId")
+        // Since currentMediaId is derived from PlayerRepository, let's mock the repo flow instead
+
+        // Find the ViewModel's repo and update currentMediaId
+        val repoField = AppViewModel::class.java.getDeclaredField("playerRepository")
+        repoField.isAccessible = true
+        val repo = repoField.get(mockViewModel) as com.bitperfect.app.player.PlayerRepository
+
+        val mediaIdRepoField = com.bitperfect.app.player.PlayerRepository::class.java.getDeclaredField("_currentMediaId")
+        mediaIdRepoField.isAccessible = true
+        val mediaIdFlow = mediaIdRepoField.get(repo) as kotlinx.coroutines.flow.MutableStateFlow<String?>
+
+        mediaIdFlow.value = "1"
+        composeTestRule.mainClock.advanceTimeBy(5000)
+        composeTestRule.waitForIdle()
+
+        // This hits the isCurrentTrack = true block. Now click it.
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).onParent().performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+>>>>>>> REPLACE

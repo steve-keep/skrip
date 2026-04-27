@@ -1,0 +1,29 @@
+<<<<<<< SEARCH
+        // Let's assert on something in AlbumHeader instead since that's what we modified
+        composeTestRule.onNodeWithText("1 Tracks", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Play", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Shuffle", substring = true).assertExists()
+
+        // Trigger the clickable to cover playTrack call inside itemsIndexed
+        // For itemsIndexed, the nodes might be slightly different or need scrolling depending on layout
+        // Let's find by clicking the parent row itself
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true, useUnmergedTree = true).performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+=======
+        // Let's assert on something in AlbumHeader instead since that's what we modified
+        composeTestRule.onNodeWithText("1 Tracks", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Play", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Shuffle", substring = true).assertExists()
+
+        // Trigger the clickable to cover playTrack call inside itemsIndexed
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).assertExists()
+
+        // Get the parent Row which has the clickable modifier and click it
+        import androidx.compose.ui.test.onParent
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).onParent().performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+>>>>>>> REPLACE
