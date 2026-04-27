@@ -1,3 +1,5 @@
+#!/bin/bash
+cat << 'FILE' > app/src/test/kotlin/com/bitperfect/app/MainActivityRobolectricTest.kt
 package com.bitperfect.app
 
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -15,14 +17,15 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import android.app.Application
+import android.content.ComponentName
 import androidx.test.core.app.ApplicationProvider
 import com.bitperfect.app.ui.AppViewModel
 import com.bitperfect.app.player.PlayerRepository
 import org.junit.Before
-import org.junit.Ignore
+import org.robolectric.shadows.ShadowApplication
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], packageName = "com.bitperfect.app")
 class MainActivityRobolectricTest {
 
     @get:Rule
@@ -31,11 +34,17 @@ class MainActivityRobolectricTest {
     @Before
     fun setup() {
         val app = ApplicationProvider.getApplicationContext<Application>()
-        // Initialize DeviceStateManager early to avoid any driveStatus NPEs
         com.bitperfect.app.usb.DeviceStateManager.initialize(app)
+
+        // Register the service in Robolectric so ComponentName isn't resolved as null in shadow
+        val shadowApp = org.robolectric.Shadows.shadowOf(app)
+        shadowApp.setComponentNameAndServiceForBindServiceForIntent(
+            android.content.Intent(app, com.bitperfect.app.player.PlaybackService::class.java),
+            ComponentName(app, com.bitperfect.app.player.PlaybackService::class.java),
+            org.mockito.Mockito.mock(android.os.IBinder::class.java)
+        )
     }
 
-    @Ignore("MediaController.Builder asynchronously crashes Robolectric's looper in tests that launch MainActivity directly.")
     @Test
     fun testMainActivityLaunchesAndShowsBitPerfect() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
@@ -45,7 +54,6 @@ class MainActivityRobolectricTest {
         }
     }
 
-    @Ignore("MediaController.Builder asynchronously crashes Robolectric's looper in tests that launch MainActivity directly.")
     @Test
     fun testMainActivityNavigation() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
@@ -74,3 +82,4 @@ class MainActivityRobolectricTest {
         }
     }
 }
+FILE

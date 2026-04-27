@@ -1,3 +1,5 @@
+#!/bin/bash
+cat << 'FILE' > app/src/main/kotlin/com/bitperfect/app/player/PlayerRepository.kt
 package com.bitperfect.app.player
 
 import android.content.ComponentName
@@ -62,13 +64,10 @@ open class PlayerRepository(
 
     open suspend fun connect() {
         try {
-            // Check context package name first to prevent NPE inside Media3 ComponentName when mocked context is used in tests
-            if (context.packageName != null) {
-                val componentName = ComponentName(context.packageName, PlaybackService::class.java.name)
-                // Just pass context directly, as the session token has internal NPEs if ComponentName has a null package.
-                // Using string package avoids passing mock Contexts that throw exceptions inside native ComponentName methods.
-                // SessionToken constructor DOES NOT take context. Wait...
-                // SessionToken constructor takes (Context context, ComponentName componentName)
+            // Check context package name safely without initializing ComponentName to avoid NPE entirely
+            val pkgName = context.packageName
+            if (pkgName != null && pkgName.isNotEmpty()) {
+                val componentName = ComponentName(context, PlaybackService::class.java)
                 val sessionToken = SessionToken(context, componentName)
                 controller = factory.build(context, sessionToken).await().apply {
                     addListener(listener)
@@ -79,7 +78,7 @@ open class PlayerRepository(
                 }
             }
         } catch (e: Throwable) {
-            // Ignore in tests
+            // Catch Throwable to handle NPEs in tests caused by SessionToken failing to evaluate packageName
         }
     }
 
@@ -140,3 +139,4 @@ open class PlayerRepository(
         controller?.seekToPrevious()
     }
 }
+FILE

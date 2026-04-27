@@ -19,7 +19,7 @@ class ComponentsTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun verifyConnectingState() = kotlinx.coroutines.test.runTest {
+    fun verifyConnectingState() {
         composeTestRule.setContent {
             DeviceList(driveStatus = DriveStatus.Connecting(null))
         }
@@ -28,7 +28,7 @@ class ComponentsTest {
     }
 
     @Test
-    fun verifyEmptyState() = kotlinx.coroutines.test.runTest {
+    fun verifyEmptyState() {
         val driveInfo = DriveInfo("ASUS", "BW-16D1HT", true, 0, 0, "")
         composeTestRule.setContent {
             DeviceList(driveStatus = DriveStatus.Empty(driveInfo))
@@ -38,7 +38,7 @@ class ComponentsTest {
     }
 
     @Test
-    fun verifyDiscReadyState() = kotlinx.coroutines.test.runTest {
+    fun verifyDiscReadyState() {
         val driveInfo = DriveInfo("ASUS", "BW-16D1HT", true, 0, 0, "")
         composeTestRule.setContent {
             DeviceList(driveStatus = DriveStatus.DiscReady(driveInfo))

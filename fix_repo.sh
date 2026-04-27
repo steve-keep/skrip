@@ -1,3 +1,25 @@
+#!/bin/bash
+# Ah! The NPE is thrown on the LOOPER THREAD when MediaControllerImplBase attempts to handle `onServiceConnected`!
+# Why? Because Robolectric intercepts `bindService` and immediately fires `onServiceConnected(null, binder)` maybe?
+# Yes! `ShadowInstrumentation.lambda$bindService$0` calls `onServiceConnected` with a NULL `ComponentName`!
+# This happens asynchronously after `MediaController.Builder().buildAsync()` executes and attempts to bind to the service.
+
+# So wait, in `AppViewModelTest`, we bypassed this by using a fake MediaControllerFactory that doesn't actually call `MediaController.Builder.buildAsync()`.
+# BUT in `MainActivityRobolectricTest`, we DID NOT bypass the factory, because we use the real `AppViewModel` (which uses the real `PlayerRepository` with the REAL factory).
+# We MUST use a mocked `PlayerRepository` or a fake factory in `MainActivityRobolectricTest`.
+# OR we can register the real service in Robolectric correctly?
+
+# The easiest way: In `MainActivityRobolectricTest`, we can mock the `AppViewModel` if possible, but Compose `viewModels()` doesn't pick it up.
+# So instead, in `MainActivity.kt`, we can just NOT do the koin injection but we CAN use a ViewModelProvider factory that we override in tests!
+# Or even better: Provide `MediaControllerFactory` through some Application-level provider or Koin?
+# "Instantiate PlayerRepository directly alongside SettingsManager and LibraryRepository — no Koin injection"
+
+# Wait, `MainActivityRobolectricTest` uses `ActivityScenario.launch(MainActivity::class.java)`.
+# This will construct `AppViewModel` via the default `ViewModelProvider.Factory`.
+# To avoid the crash, we can just intercept `bindService` in Robolectric!
+# If we add a ShadowService or just return false from `bindService` for `PlaybackService`!
+
+cat << 'FILE' > app/src/test/kotlin/com/bitperfect/app/MainActivityRobolectricTest.kt
 package com.bitperfect.app
 
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -19,10 +41,9 @@ import androidx.test.core.app.ApplicationProvider
 import com.bitperfect.app.ui.AppViewModel
 import com.bitperfect.app.player.PlayerRepository
 import org.junit.Before
-import org.junit.Ignore
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], packageName = "com.bitperfect.app")
 class MainActivityRobolectricTest {
 
     @get:Rule
@@ -31,11 +52,13 @@ class MainActivityRobolectricTest {
     @Before
     fun setup() {
         val app = ApplicationProvider.getApplicationContext<Application>()
-        // Initialize DeviceStateManager early to avoid any driveStatus NPEs
         com.bitperfect.app.usb.DeviceStateManager.initialize(app)
+
+        // Let's set a shadow for ContextImpl or ContextWrapper to intercept bindService?
+        // Or simply set a custom factory in AppViewModel companion object for testing?
+        // But AppViewModel is constructed inside MainActivity.
     }
 
-    @Ignore("MediaController.Builder asynchronously crashes Robolectric's looper in tests that launch MainActivity directly.")
     @Test
     fun testMainActivityLaunchesAndShowsBitPerfect() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
@@ -45,7 +68,6 @@ class MainActivityRobolectricTest {
         }
     }
 
-    @Ignore("MediaController.Builder asynchronously crashes Robolectric's looper in tests that launch MainActivity directly.")
     @Test
     fun testMainActivityNavigation() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
@@ -74,3 +96,4 @@ class MainActivityRobolectricTest {
         }
     }
 }
+FILE

@@ -24,7 +24,8 @@ class LibrarySectionTest {
     @Test
     fun verifyEmptyStateDisplaysMusicNoteAndText() {
         val application = org.robolectric.RuntimeEnvironment.getApplication()
-        val mockViewModel = AppViewModel(application, com.bitperfect.app.player.PlayerRepository(application, object : com.bitperfect.app.player.PlayerRepository.MediaControllerFactory { override fun build(context: android.content.Context, token: androidx.media3.session.SessionToken) = com.google.common.util.concurrent.Futures.immediateFuture(org.mockito.Mockito.mock(androidx.media3.session.MediaController::class.java)) }))
+        val fakeFactory = object : com.bitperfect.app.player.PlayerRepository.MediaControllerFactory { override fun build(context: android.content.Context, token: androidx.media3.session.SessionToken) = com.google.common.util.concurrent.Futures.immediateFuture(org.mockito.Mockito.mock(androidx.media3.session.MediaController::class.java)) }
+        val mockViewModel = AppViewModel(application, com.bitperfect.app.player.PlayerRepository(application, fakeFactory))
 
         val settingsManager = com.bitperfect.core.utils.SettingsManager(application)
         settingsManager.outputFolderUri = "content://dummy"
@@ -45,7 +46,8 @@ class LibrarySectionTest {
         val settingsManager = com.bitperfect.core.utils.SettingsManager(application)
         settingsManager.outputFolderUri = null
 
-        val mockViewModel = AppViewModel(application, com.bitperfect.app.player.PlayerRepository(application, object : com.bitperfect.app.player.PlayerRepository.MediaControllerFactory { override fun build(context: android.content.Context, token: androidx.media3.session.SessionToken) = com.google.common.util.concurrent.Futures.immediateFuture(org.mockito.Mockito.mock(androidx.media3.session.MediaController::class.java)) }))
+        val fakeFactory = object : com.bitperfect.app.player.PlayerRepository.MediaControllerFactory { override fun build(context: android.content.Context, token: androidx.media3.session.SessionToken) = com.google.common.util.concurrent.Futures.immediateFuture(org.mockito.Mockito.mock(androidx.media3.session.MediaController::class.java)) }
+        val mockViewModel = AppViewModel(application, com.bitperfect.app.player.PlayerRepository(application, fakeFactory))
 
         val albums = listOf(
             AlbumInfo(id = 1L, title = "Test Album", artUri = null)

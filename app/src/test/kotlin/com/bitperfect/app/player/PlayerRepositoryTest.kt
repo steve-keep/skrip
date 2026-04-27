@@ -10,12 +10,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 
 class PlayerRepositoryTest {
 
     @Test
     fun `test initial state`() = runTest {
         val mockContext = mock(Context::class.java)
+        `when`(mockContext.packageName).thenReturn("com.bitperfect.app")
         val mockController = mock(MediaController::class.java)
 
         val fakeFactory = object : PlayerRepository.MediaControllerFactory {

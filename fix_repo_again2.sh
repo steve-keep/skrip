@@ -1,3 +1,9 @@
+#!/bin/bash
+git checkout app/src/test/kotlin/com/bitperfect/app/ui/ComponentsTest.kt
+git clean -fd
+
+# OK! I see the issue. MainActivityRobolectricTest, LibrarySectionTest, etc. had errors because of missing `AndroidManifest.xml` that declared ComponentActivity, OR because of default `Application` package name resolution inside `PlayerRepository`. I fixed `PlayerRepository`. Now I just need to make sure the mocked factory gets used!
+cat << 'FILE' > app/src/test/kotlin/com/bitperfect/app/MainActivityRobolectricTest.kt
 package com.bitperfect.app
 
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -19,7 +25,6 @@ import androidx.test.core.app.ApplicationProvider
 import com.bitperfect.app.ui.AppViewModel
 import com.bitperfect.app.player.PlayerRepository
 import org.junit.Before
-import org.junit.Ignore
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -35,7 +40,6 @@ class MainActivityRobolectricTest {
         com.bitperfect.app.usb.DeviceStateManager.initialize(app)
     }
 
-    @Ignore("MediaController.Builder asynchronously crashes Robolectric's looper in tests that launch MainActivity directly.")
     @Test
     fun testMainActivityLaunchesAndShowsBitPerfect() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
@@ -45,7 +49,6 @@ class MainActivityRobolectricTest {
         }
     }
 
-    @Ignore("MediaController.Builder asynchronously crashes Robolectric's looper in tests that launch MainActivity directly.")
     @Test
     fun testMainActivityNavigation() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
@@ -74,3 +77,4 @@ class MainActivityRobolectricTest {
         }
     }
 }
+FILE

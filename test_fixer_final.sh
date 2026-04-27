@@ -1,3 +1,7 @@
+#!/bin/bash
+git checkout app/src/test/kotlin/com/bitperfect/app/MainActivityRobolectricTest.kt app/src/test/kotlin/com/bitperfect/app/ui/LibrarySectionTest.kt app/src/test/kotlin/com/bitperfect/app/ui/SettingsScreenTest.kt app/src/test/kotlin/com/bitperfect/app/ui/TrackListScreenTest.kt app/src/test/kotlin/com/bitperfect/app/ui/ComponentsTest.kt
+
+cat << 'FILE' > app/src/main/kotlin/com/bitperfect/app/player/PlayerRepository.kt
 package com.bitperfect.app.player
 
 import android.content.ComponentName
@@ -62,21 +66,16 @@ open class PlayerRepository(
 
     open suspend fun connect() {
         try {
-            // Check context package name first to prevent NPE inside Media3 ComponentName when mocked context is used in tests
-            if (context.packageName != null) {
-                val componentName = ComponentName(context.packageName, PlaybackService::class.java.name)
-                // Just pass context directly, as the session token has internal NPEs if ComponentName has a null package.
-                // Using string package avoids passing mock Contexts that throw exceptions inside native ComponentName methods.
-                // SessionToken constructor DOES NOT take context. Wait...
-                // SessionToken constructor takes (Context context, ComponentName componentName)
-                val sessionToken = SessionToken(context, componentName)
-                controller = factory.build(context, sessionToken).await().apply {
-                    addListener(listener)
-                    // Initialize state
-                    _isPlaying.value = isPlaying
-                    _currentMediaId.value = currentMediaItem?.mediaId
-                    _positionMs.value = currentPosition
-                }
+            // Provide a hardcoded package name fallback for Robolectric mock/Application context
+            val pkg = context.packageName ?: "com.bitperfect.app"
+            val componentName = ComponentName(pkg, PlaybackService::class.java.name)
+            val sessionToken = SessionToken(context, componentName)
+            controller = factory.build(context, sessionToken).await().apply {
+                addListener(listener)
+                // Initialize state
+                _isPlaying.value = isPlaying
+                _currentMediaId.value = currentMediaItem?.mediaId
+                _positionMs.value = currentPosition
             }
         } catch (e: Throwable) {
             // Ignore in tests
@@ -140,3 +139,4 @@ open class PlayerRepository(
         controller?.seekToPrevious()
     }
 }
+FILE

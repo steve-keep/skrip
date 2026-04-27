@@ -1,3 +1,5 @@
+#!/bin/bash
+cat << 'FILE' > app/src/main/kotlin/com/bitperfect/app/player/PlayerRepository.kt
 package com.bitperfect.app.player
 
 import android.content.ComponentName
@@ -140,3 +142,4 @@ open class PlayerRepository(
         controller?.seekToPrevious()
     }
 }
+FILE

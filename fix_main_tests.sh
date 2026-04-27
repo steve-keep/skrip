@@ -1,3 +1,5 @@
+#!/bin/bash
+cat << 'FILE' > app/src/test/kotlin/com/bitperfect/app/MainActivityRobolectricTest.kt
 package com.bitperfect.app
 
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -19,10 +21,9 @@ import androidx.test.core.app.ApplicationProvider
 import com.bitperfect.app.ui.AppViewModel
 import com.bitperfect.app.player.PlayerRepository
 import org.junit.Before
-import org.junit.Ignore
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], packageName = "com.bitperfect.app")
 class MainActivityRobolectricTest {
 
     @get:Rule
@@ -35,7 +36,6 @@ class MainActivityRobolectricTest {
         com.bitperfect.app.usb.DeviceStateManager.initialize(app)
     }
 
-    @Ignore("MediaController.Builder asynchronously crashes Robolectric's looper in tests that launch MainActivity directly.")
     @Test
     fun testMainActivityLaunchesAndShowsBitPerfect() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
@@ -45,7 +45,6 @@ class MainActivityRobolectricTest {
         }
     }
 
-    @Ignore("MediaController.Builder asynchronously crashes Robolectric's looper in tests that launch MainActivity directly.")
     @Test
     fun testMainActivityNavigation() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
@@ -74,3 +73,4 @@ class MainActivityRobolectricTest {
         }
     }
 }
+FILE
