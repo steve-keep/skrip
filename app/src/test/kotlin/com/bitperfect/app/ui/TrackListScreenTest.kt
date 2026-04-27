@@ -20,7 +20,8 @@ class TrackListScreenTest {
     @Test
     fun verifyTrackListScreenLoadingState() {
         val application = RuntimeEnvironment.getApplication()
-        val mockViewModel = AppViewModel(application)
+        val fakeFactory = object : com.bitperfect.app.player.PlayerRepository.MediaControllerFactory { override fun build(context: android.content.Context, token: androidx.media3.session.SessionToken) = com.google.common.util.concurrent.Futures.immediateFuture(org.mockito.Mockito.mock(androidx.media3.session.MediaController::class.java)) }
+        val mockViewModel = AppViewModel(application, com.bitperfect.app.player.PlayerRepository(application, fakeFactory))
 
         mockViewModel.selectAlbum(1L, "Test Album")
 
@@ -36,7 +37,8 @@ class TrackListScreenTest {
     @Test
     fun verifyTrackListScreenLoadedState() {
         val application = RuntimeEnvironment.getApplication()
-        val mockViewModel = AppViewModel(application)
+        val fakeFactory = object : com.bitperfect.app.player.PlayerRepository.MediaControllerFactory { override fun build(context: android.content.Context, token: androidx.media3.session.SessionToken) = com.google.common.util.concurrent.Futures.immediateFuture(org.mockito.Mockito.mock(androidx.media3.session.MediaController::class.java)) }
+        val mockViewModel = AppViewModel(application, com.bitperfect.app.player.PlayerRepository(application, fakeFactory))
 
         // Force a mock artists list to cover AlbumHeader extraction
         val artistsField = AppViewModel::class.java.getDeclaredField("_artists")

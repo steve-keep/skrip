@@ -22,7 +22,8 @@ class SettingsScreenTest {
     @Test
     fun verifySettingsScreenRenders() {
         val application = org.robolectric.RuntimeEnvironment.getApplication()
-        val mockViewModel = AppViewModel(application)
+        val fakeFactory = object : com.bitperfect.app.player.PlayerRepository.MediaControllerFactory { override fun build(context: android.content.Context, token: androidx.media3.session.SessionToken) = com.google.common.util.concurrent.Futures.immediateFuture(org.mockito.Mockito.mock(androidx.media3.session.MediaController::class.java)) }
+        val mockViewModel = AppViewModel(application, com.bitperfect.app.player.PlayerRepository(application, fakeFactory))
         val settingsManager = SettingsManager(application)
         val driveOffsetRepository = DriveOffsetRepository(application)
 
