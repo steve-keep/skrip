@@ -1,0 +1,22 @@
+<<<<<<< SEARCH
+        // Let's assert on something in AlbumHeader instead since that's what we modified
+        composeTestRule.onNodeWithText("1 Tracks", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Play", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Shuffle", substring = true).assertExists()
+    }
+}
+=======
+        // Let's assert on something in AlbumHeader instead since that's what we modified
+        composeTestRule.onNodeWithText("1 Tracks", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Play", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Shuffle", substring = true).assertExists()
+
+        // Also verify the list item
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).assertExists()
+
+        // Trigger the clickable to cover playTrack call inside itemsIndexed
+        composeTestRule.onNodeWithText("Mock Track Title", substring = true).performClick()
+        composeTestRule.waitForIdle()
+    }
+}
+>>>>>>> REPLACE

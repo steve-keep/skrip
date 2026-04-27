@@ -1,0 +1,126 @@
+<<<<<<< SEARCH
+package com.bitperfect.app
+
+import android.os.Build
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [Build.VERSION_CODES.UPSIDE_DOWN_CAKE])
+class MainActivityRobolectricTest {
+
+    @get:Rule
+    val composeTestRule = createAndroidComposeRule<MainActivity>()
+
+    @Test
+    fun testMainActivityLaunchesAndShowsBitPerfect() {
+        composeTestRule.onNodeWithText("BitPerfect").assertExists()
+        composeTestRule.onNodeWithText("No drive detected").assertExists()
+    }
+
+    @Test
+    fun testMainActivityNavigation() {
+        composeTestRule.onNodeWithText("Settings").assertDoesNotExist()
+
+        // Open settings
+        composeTestRule.onNodeWithContentDescription("Settings").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Settings").assertExists()
+        composeTestRule.onNodeWithText("About BitPerfect").assertExists()
+
+        // Navigate back
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("BitPerfect").assertExists()
+
+        // Ensure playPause / skip controls from NowPlayingBar don't crash when currentTrackTitle is null
+    }
+}
+=======
+package com.bitperfect.app
+
+import android.os.Build
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import com.bitperfect.app.ui.AppViewModel
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [Build.VERSION_CODES.UPSIDE_DOWN_CAKE])
+class MainActivityRobolectricTest {
+
+    @get:Rule
+    val composeTestRule = createAndroidComposeRule<MainActivity>()
+
+    @Test
+    fun testMainActivityLaunchesAndShowsBitPerfect() {
+        composeTestRule.onNodeWithText("BitPerfect").assertExists()
+        composeTestRule.onNodeWithText("No drive detected").assertExists()
+    }
+
+    @Test
+    fun testMainActivityNavigation() {
+        composeTestRule.onNodeWithText("Settings").assertDoesNotExist()
+
+        // Open settings
+        composeTestRule.onNodeWithContentDescription("Settings").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Settings").assertExists()
+        composeTestRule.onNodeWithText("About BitPerfect").assertExists()
+
+        // Navigate back
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("BitPerfect").assertExists()
+    }
+
+    @Test
+    fun testNowPlayingBarDelegates() {
+        // Find the ViewModel through reflection
+        val activity = composeTestRule.activity
+        val vmField = MainActivity::class.java.getDeclaredField("appViewModel\$delegate")
+        vmField.isAccessible = true
+        val lazyVm = vmField.get(activity) as kotlin.Lazy<AppViewModel>
+        val viewModel = lazyVm.value
+
+        val tracksField = AppViewModel::class.java.getDeclaredField("_playingTracks")
+        tracksField.isAccessible = true
+        val tracksStateFlow = tracksField.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<List<com.bitperfect.app.library.TrackInfo>>
+
+        val repoField = AppViewModel::class.java.getDeclaredField("playerRepository")
+        repoField.isAccessible = true
+        val repo = repoField.get(viewModel) as com.bitperfect.app.player.PlayerRepository
+
+        val mediaIdField = com.bitperfect.app.player.PlayerRepository::class.java.getDeclaredField("_currentMediaId")
+        mediaIdField.isAccessible = true
+        val mediaIdFlow = mediaIdField.get(repo) as kotlinx.coroutines.flow.MutableStateFlow<String?>
+
+        tracksStateFlow.value = listOf(com.bitperfect.app.library.TrackInfo(1L, "Mock Title", 1, 1000L))
+        mediaIdFlow.value = "1"
+
+        composeTestRule.mainClock.advanceTimeBy(5000)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Mock Title", substring = true).assertExists()
+        composeTestRule.onNodeWithContentDescription("Play").performClick()
+        composeTestRule.onNodeWithContentDescription("Skip Next").performClick()
+        composeTestRule.onNodeWithContentDescription("Skip Previous").performClick()
+    }
+}
+>>>>>>> REPLACE

@@ -2,6 +2,7 @@ package com.bitperfect.app.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.assertIsDisplayed
 import org.junit.Rule
 import org.junit.Test
@@ -76,6 +77,11 @@ class TrackListScreenTest {
         )
         composeTestRule.mainClock.advanceTimeBy(5000)
         composeTestRule.waitForIdle()
+
+        // Let's assert on something in AlbumHeader instead since that's what we modified
+        composeTestRule.onNodeWithText("1 Tracks", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Play", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Shuffle", substring = true).assertExists()
 
         // Let's assert on something in AlbumHeader instead since that's what we modified
         composeTestRule.onNodeWithText("1 Tracks", substring = true).assertExists()
