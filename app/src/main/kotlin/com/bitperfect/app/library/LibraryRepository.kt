@@ -13,21 +13,17 @@ class LibraryRepository(private val context: Context) {
             return emptyList()
         }
 
-        // Decode the SAF URI (e.g. content://com.android.externalstorage.documents/tree/primary%3AMusic%2FBitPerfect)
         val decodedUri = URLDecoder.decode(outputFolderUriString, "UTF-8")
 
-        // Extract substring after the last ':'
         val pathIndex = decodedUri.lastIndexOf(":")
         if (pathIndex == -1 || pathIndex == decodedUri.length - 1) {
             return emptyList()
         }
 
         var relativePath = decodedUri.substring(pathIndex + 1)
-        // Ensure no trailing slash
         if (relativePath.endsWith("/")) {
             relativePath = relativePath.dropLast(1)
         }
-        // Ensure no leading slash
         if (relativePath.startsWith("/")) {
             relativePath = relativePath.drop(1)
         }
@@ -39,9 +35,7 @@ class LibraryRepository(private val context: Context) {
             MediaStore.Audio.Media.ALBUM
         )
 
-        // Add trailing % for LIKE query
         val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
-        // Need a trailing slash to match a directory and everything under it
         val selectionArgs = arrayOf("$relativePath/%")
 
         val sortOrder = "${MediaStore.Audio.Media.ARTIST} ASC, ${MediaStore.Audio.Media.ALBUM} ASC"
@@ -117,9 +111,16 @@ class LibraryRepository(private val context: Context) {
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
                 val title = cursor.getString(titleCol) ?: "Unknown Track"
-                val trackNumber = cursor.getInt(trackCol)
+                var trackNumber = cursor.getInt(trackCol)
                 val durationMs = cursor.getLong(durationCol)
-                tracks.add(TrackInfo(id, title, trackNumber, durationMs))
+                var discNumber = 1
+
+                if (trackNumber >= 1000) {
+                    discNumber = trackNumber / 1000
+                    trackNumber %= 1000
+                }
+
+                tracks.add(TrackInfo(id, title, trackNumber, durationMs, discNumber))
             }
         }
 

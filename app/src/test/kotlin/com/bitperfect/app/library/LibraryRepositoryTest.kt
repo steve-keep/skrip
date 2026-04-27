@@ -49,6 +49,7 @@ class LibraryRepositoryTest {
 
         cursor.addRow(arrayOf(1L, "Track 1", 1, 1000L))
         cursor.addRow(arrayOf(2L, "Track 2", 2, 2000L))
+        cursor.addRow(arrayOf(3L, "Track 1001", 1001, 3000L)) // Test track number handling
 
         `when`(
             mockContentResolver.query(
@@ -62,17 +63,25 @@ class LibraryRepositoryTest {
 
         val tracks = libraryRepository.getTracksForAlbum(albumId)
 
-        assertEquals(2, tracks.size)
+        assertEquals(3, tracks.size)
 
         assertEquals(1L, tracks[0].id)
         assertEquals("Track 1", tracks[0].title)
         assertEquals(1, tracks[0].trackNumber)
         assertEquals(1000L, tracks[0].durationMs)
+        assertEquals(1, tracks[0].discNumber)
 
         assertEquals(2L, tracks[1].id)
         assertEquals("Track 2", tracks[1].title)
         assertEquals(2, tracks[1].trackNumber)
         assertEquals(2000L, tracks[1].durationMs)
+        assertEquals(1, tracks[1].discNumber)
+
+        assertEquals(3L, tracks[2].id)
+        assertEquals("Track 1001", tracks[2].title)
+        assertEquals(1, tracks[2].trackNumber)
+        assertEquals(3000L, tracks[2].durationMs)
+        assertEquals(1, tracks[2].discNumber)
     }
 
     @Test
@@ -103,6 +112,7 @@ class LibraryRepositoryTest {
 
         assertEquals(1, tracks.size)
         assertEquals("Unknown Track", tracks[0].title)
+        assertEquals(1, tracks[0].trackNumber)
     }
 
     @Test
