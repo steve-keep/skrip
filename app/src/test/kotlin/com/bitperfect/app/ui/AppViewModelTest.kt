@@ -8,16 +8,29 @@ import androidx.test.core.app.ApplicationProvider
 import com.bitperfect.app.library.ArtistInfo
 import com.bitperfect.app.library.TrackInfo
 import com.bitperfect.app.player.PlayerRepository
+import com.bitperfect.app.usb.DeviceStateManager
+import com.bitperfect.app.usb.DriveStatus
+import com.bitperfect.app.usb.DriveInfo
+import com.bitperfect.app.library.MusicBrainzRepositoryWrapper
+import com.bitperfect.core.models.DiscMetadata
+import com.bitperfect.core.models.DiscToc
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.mock
@@ -32,9 +45,14 @@ class AppViewModelTest {
 
     private lateinit var viewModel: AppViewModel
     private lateinit var mockRepository: PlayerRepository
+    private lateinit var mockMusicBrainzRepository: MusicBrainzRepositoryWrapper
+    private lateinit var mockDriveStatusFlow: MutableStateFlow<DriveStatus>
+    private var originalDriveStatusFlow: StateFlow<DriveStatus>? = null
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     fun setup() {
+        Dispatchers.setMain(StandardTestDispatcher())
         val application = ApplicationProvider.getApplicationContext<Application>()
         mockRepository = mock(PlayerRepository::class.java)
 
@@ -42,7 +60,99 @@ class AppViewModelTest {
         org.mockito.Mockito.`when`(mockRepository.currentMediaId).thenReturn(MutableStateFlow(null))
         org.mockito.Mockito.`when`(mockRepository.positionMs).thenReturn(MutableStateFlow(0L))
 
-        viewModel = AppViewModel(application, mockRepository)
+        mockMusicBrainzRepository = mock(MusicBrainzRepositoryWrapper::class.java)
+
+        mockDriveStatusFlow = MutableStateFlow(DriveStatus.NoDrive)
+        val field = DeviceStateManager::class.java.getDeclaredField("driveStatus")
+        field.isAccessible = true
+
+        try {
+            originalDriveStatusFlow = field.get(DeviceStateManager) as? StateFlow<DriveStatus>
+        } catch (e: Exception) {
+            // It might be uninitialized
+        }
+        field.set(DeviceStateManager, mockDriveStatusFlow)
+
+        viewModel = AppViewModel(application, mockRepository, mockMusicBrainzRepository)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @After
+    fun teardown() {
+        Dispatchers.resetMain()
+        val field = DeviceStateManager::class.java.getDeclaredField("driveStatus")
+        field.isAccessible = true
+        if (originalDriveStatusFlow != null) {
+            field.set(DeviceStateManager, originalDriveStatusFlow)
+        } else {
+            // Need to reset to uninitialized state, but since it's a primitive/reference, setting to null is tricky for lateinit.
+            // However, we can re-initialize it or leave it as a new NoDrive flow.
+            // Actually, we can reset usbDriveDetector and re-init.
+            val detectorField = DeviceStateManager::class.java.getDeclaredField("usbDriveDetector")
+            detectorField.isAccessible = true
+            detectorField.set(DeviceStateManager, null)
+        }
+    }
+
+    @Test
+    fun testDiscMetadataPopulatedOnDiscReadyWithToc() = runTest {
+        val dummyToc = DiscToc(emptyList(), 10)
+        val dummyMetadata = DiscMetadata("Album", "Artist", emptyList(), "mbid")
+
+        org.mockito.Mockito.`when`(mockMusicBrainzRepository.lookup(dummyToc)).thenReturn(dummyMetadata)
+
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.discMetadata.collect {}
+        }
+
+        mockDriveStatusFlow.value = DriveStatus.DiscReady(DriveInfo("Vendor", "Product", true), dummyToc)
+        advanceUntilIdle()
+        // Run any delayed tasks that might be on other dispatchers
+        ShadowLooper.idleMainLooper()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        assertEquals(dummyMetadata, viewModel.discMetadata.value)
+        job.cancel()
+    }
+
+    @Test
+    fun testDiscMetadataResetsToNullOnNoDrive() = runTest {
+        val dummyToc = DiscToc(emptyList(), 10)
+        val dummyMetadata = DiscMetadata("Album", "Artist", emptyList(), "mbid")
+
+        org.mockito.Mockito.`when`(mockMusicBrainzRepository.lookup(dummyToc)).thenReturn(dummyMetadata)
+
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.discMetadata.collect {}
+        }
+
+        mockDriveStatusFlow.value = DriveStatus.DiscReady(DriveInfo("Vendor", "Product", true), dummyToc)
+        advanceUntilIdle()
+        ShadowLooper.idleMainLooper()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        assertEquals(dummyMetadata, viewModel.discMetadata.value)
+
+        mockDriveStatusFlow.value = DriveStatus.NoDrive
+        advanceUntilIdle()
+        ShadowLooper.idleMainLooper()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        assertEquals(null, viewModel.discMetadata.value)
+
+        job.cancel()
+    }
+
+    @Test
+    fun testDiscMetadataStaysNullOnDiscReadyNullToc() = runTest {
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.discMetadata.collect {}
+        }
+
+        mockDriveStatusFlow.value = DriveStatus.DiscReady(DriveInfo("Vendor", "Product", true), null)
+        advanceUntilIdle()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        assertEquals(null, viewModel.discMetadata.value)
+        job.cancel()
     }
 
     @Test
@@ -57,7 +167,7 @@ class AppViewModelTest {
         org.mockito.Mockito.`when`(mockRepository.currentMediaId).thenReturn(mutableCurrentMediaId)
 
         val application = ApplicationProvider.getApplicationContext<Application>()
-        val vm = AppViewModel(application, mockRepository)
+        val vm = AppViewModel(application, mockRepository, mockMusicBrainzRepository)
 
         // Start collecting the currentTrackTitle stateflow so that it activates and stays alive
         val job = launch(UnconfinedTestDispatcher(testScheduler)) {
