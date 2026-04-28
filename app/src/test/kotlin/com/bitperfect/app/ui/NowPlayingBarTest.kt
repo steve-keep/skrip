@@ -49,6 +49,20 @@ class NowPlayingBarTest {
     }
 
     @Test
+    fun verifyNowPlayingBarWithArtUri() {
+        composeTestRule.setContent {
+            NowPlayingBar(
+                isPlaying = true,
+                currentTrackTitle = "My Favorite Song",
+                currentAlbumArtUri = android.net.Uri.parse("content://media/external/audio/albumart/1"),
+                onPlayPause = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("now_playing_title").assertIsDisplayed()
+    }
+
+    @Test
     fun verifyCallbacksInvoked() {
         var playPauseClicked = false
 
