@@ -25,4 +25,9 @@ object AppLogger {
         Log.i(tag, message)
         logCallback?.invoke(tag, message, Log.INFO, null)
     }
+
+    fun w(tag: String, message: String) {
+        Log.w(tag, message)
+        logCallback?.invoke(tag, message, Log.WARN, null)
+    }
 }
