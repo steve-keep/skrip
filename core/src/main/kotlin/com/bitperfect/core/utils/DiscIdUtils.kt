@@ -37,3 +37,35 @@ fun computeAccurateRipDiscId(toc: DiscToc): AccurateRipDiscId {
     val id3 = computeFreedbId(toc)
     return AccurateRipDiscId(offsetsAdded, offsetsMultiplied, id3)
 }
+
+fun computeMusicBrainzDiscId(toc: DiscToc): String {
+    val tokens = mutableListOf<String>()
+
+    // Token 1: first track number (always 1 as per instructions: "00000001")
+    tokens.add(String.format("%08X", 1))
+
+    // Token 2: last track number
+    val lastTrack = toc.tracks.size
+    tokens.add(String.format("%08X", lastTrack))
+
+    // Token 3: lead-out LBA + 150
+    tokens.add(String.format("%08X", toc.leadOutLba + 150))
+
+    // Tokens 4-102: slots 1-99
+    val trackMap = toc.tracks.mapIndexed { index, entry -> (index + 1) to entry }.toMap()
+    for (i in 1..99) {
+        val entry = trackMap[i]
+        if (entry != null) {
+            tokens.add(String.format("%08X", entry.lba + 150))
+        } else {
+            tokens.add("00000000")
+        }
+    }
+
+    val asciiString = tokens.joinToString(" ")
+    val md = java.security.MessageDigest.getInstance("SHA-1")
+    val digest = md.digest(asciiString.toByteArray(Charsets.US_ASCII))
+
+    // getUrlEncoder() inherently replaces + with - and / with _
+    return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+}
