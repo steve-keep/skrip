@@ -56,18 +56,8 @@ class AppViewModel(
     val currentMediaId: StateFlow<String?> = playerRepository.currentMediaId
     val positionMs: StateFlow<Long> = playerRepository.positionMs
 
-    val currentTrackTitle: StateFlow<String?> = combine(_playingTracks, currentMediaId) { playingTracks, mediaId ->
-        playingTracks.find { it.id.toString() == mediaId }?.title
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    val currentAlbumArtUri: StateFlow<android.net.Uri?> = combine(_playingTracks, currentMediaId) { playingTracks, mediaId ->
-        val albumId = playingTracks.find { it.id.toString() == mediaId }?.albumId
-        if (albumId != null && albumId != -1L) {
-            android.content.ContentUris.withAppendedId(android.net.Uri.parse("content://media/external/audio/albumart"), albumId)
-        } else {
-            null
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val currentTrackTitle: StateFlow<String?> = playerRepository.currentTrackTitle
+    val currentAlbumArtUri: StateFlow<android.net.Uri?> = playerRepository.currentAlbumArtUri
 
     val filteredArtists: StateFlow<List<ArtistInfo>> = combine(artists, searchQuery) { artistsList, query ->
         if (query.isBlank()) {

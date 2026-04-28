@@ -40,6 +40,8 @@ class AppViewModelTest {
 
         org.mockito.Mockito.`when`(mockRepository.isPlaying).thenReturn(MutableStateFlow(false))
         org.mockito.Mockito.`when`(mockRepository.currentMediaId).thenReturn(MutableStateFlow(null))
+        org.mockito.Mockito.`when`(mockRepository.currentTrackTitle).thenReturn(MutableStateFlow(null))
+        org.mockito.Mockito.`when`(mockRepository.currentAlbumArtUri).thenReturn(MutableStateFlow(null))
         org.mockito.Mockito.`when`(mockRepository.positionMs).thenReturn(MutableStateFlow(0L))
 
         viewModel = AppViewModel(application, mockRepository)
@@ -52,9 +54,13 @@ class AppViewModelTest {
             TrackInfo(2L, "Second Song", 2, 2000L, 1, 100L)
         )
 
-        // Use a test-specific mock repository to allow mutating currentMediaId
+        // Use a test-specific mock repository to allow mutating state flows
         val mutableCurrentMediaId = MutableStateFlow<String?>(null)
+        val mutableCurrentTrackTitle = MutableStateFlow<String?>(null)
+        val mutableCurrentAlbumArtUri = MutableStateFlow<android.net.Uri?>(null)
         org.mockito.Mockito.`when`(mockRepository.currentMediaId).thenReturn(mutableCurrentMediaId)
+        org.mockito.Mockito.`when`(mockRepository.currentTrackTitle).thenReturn(mutableCurrentTrackTitle)
+        org.mockito.Mockito.`when`(mockRepository.currentAlbumArtUri).thenReturn(mutableCurrentAlbumArtUri)
 
         val application = ApplicationProvider.getApplicationContext<Application>()
         val vm = AppViewModel(application, mockRepository)
@@ -69,17 +75,23 @@ class AppViewModelTest {
 
         vm.playAlbum(tracks)
         mutableCurrentMediaId.value = "1"
+        mutableCurrentTrackTitle.value = "First Song"
+        mutableCurrentAlbumArtUri.value = android.net.Uri.parse("content://media/external/audio/albumart/100")
         advanceUntilIdle()
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
         assertEquals("First Song", vm.currentTrackTitle.value)
         assertEquals("content://media/external/audio/albumart/100", vm.currentAlbumArtUri.value?.toString())
 
         mutableCurrentMediaId.value = "2"
+        mutableCurrentTrackTitle.value = "Second Song"
+        mutableCurrentAlbumArtUri.value = android.net.Uri.parse("content://media/external/audio/albumart/100")
         advanceUntilIdle()
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
         assertEquals("Second Song", vm.currentTrackTitle.value)
 
         mutableCurrentMediaId.value = "3"
+        mutableCurrentTrackTitle.value = null
+        mutableCurrentAlbumArtUri.value = null
         advanceUntilIdle()
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
         assertEquals(null, vm.currentTrackTitle.value)
