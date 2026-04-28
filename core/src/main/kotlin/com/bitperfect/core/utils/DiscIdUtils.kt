@@ -67,5 +67,5 @@ fun computeMusicBrainzDiscId(toc: DiscToc): String {
     val digest = md.digest(asciiString.toByteArray(Charsets.US_ASCII))
 
     // getUrlEncoder() inherently replaces + with - and / with _
-    return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+    return android.util.Base64.encodeToString(digest, android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
 }

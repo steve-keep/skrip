@@ -14,10 +14,14 @@ import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 
 sealed class CalibrationStepState {
     data object WaitingForDisc : CalibrationStepState()
+    data object CheckingDisc : CalibrationStepState()
+    data class NotAKeyDisc(val discTitle: String?) : CalibrationStepState()
+    data class KeyDiscConfirmed(val discTitle: String?) : CalibrationStepState()
     data object Scanning : CalibrationStepState()
     data object Success : CalibrationStepState()
     data class Error(val message: String) : CalibrationStepState()
@@ -28,6 +32,9 @@ val CalibrationStepStateListSaver = listSaver<MutableList<CalibrationStepState>,
         stateList.map { state ->
             when (state) {
                 is CalibrationStepState.WaitingForDisc -> "WaitingForDisc"
+                is CalibrationStepState.CheckingDisc -> "CheckingDisc"
+                is CalibrationStepState.NotAKeyDisc -> "NotAKeyDisc:${state.discTitle ?: ""}"
+                is CalibrationStepState.KeyDiscConfirmed -> "KeyDiscConfirmed:${state.discTitle ?: ""}"
                 is CalibrationStepState.Scanning -> "Scanning"
                 is CalibrationStepState.Success -> "Success"
                 is CalibrationStepState.Error -> "Error:${state.message}"
@@ -40,6 +47,9 @@ val CalibrationStepStateListSaver = listSaver<MutableList<CalibrationStepState>,
             stateList.add(
                 when {
                     savedString == "WaitingForDisc" -> CalibrationStepState.WaitingForDisc
+                    savedString == "CheckingDisc" -> CalibrationStepState.CheckingDisc
+                    savedString.startsWith("NotAKeyDisc:") -> CalibrationStepState.NotAKeyDisc(savedString.substringAfter("NotAKeyDisc:").takeIf { it.isNotEmpty() })
+                    savedString.startsWith("KeyDiscConfirmed:") -> CalibrationStepState.KeyDiscConfirmed(savedString.substringAfter("KeyDiscConfirmed:").takeIf { it.isNotEmpty() })
                     savedString == "Scanning" -> CalibrationStepState.Scanning
                     savedString == "Success" -> CalibrationStepState.Success
                     savedString.startsWith("Error:") -> CalibrationStepState.Error(savedString.substringAfter("Error:"))
@@ -58,12 +68,7 @@ fun CalibrationStepContent(
     onStateChanged: (CalibrationStepState) -> Unit,
     onStartScan: () -> Unit
 ) {
-    LaunchedEffect(state) {
-        if (state is CalibrationStepState.Scanning) {
-            delay(2000L)
-            onStateChanged(CalibrationStepState.Success)
-        }
-    }
+    // Note: the delayed state change is moved to the ViewModel where scanning will occur
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -73,16 +78,68 @@ fun CalibrationStepContent(
         when (state) {
             is CalibrationStepState.WaitingForDisc -> {
                 Text(
-                    text = "Insert disc $stepNumber of 3 and tap Start Scan",
+                    text = "Insert disc $stepNumber of 3",
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
-                Button(
-                    onClick = {
-                        onStateChanged(CalibrationStepState.Scanning)
-                        onStartScan()
-                    }
-                ) {
+                // "Start Scan" will appear when it transitions to KeyDiscConfirmed
+            }
+            is CalibrationStepState.CheckingDisc -> {
+                CircularProgressIndicator(modifier = Modifier.padding(bottom = 24.dp))
+                Text(
+                    text = "Checking disc…",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+            is CalibrationStepState.NotAKeyDisc -> {
+                Icon(
+                    imageVector = Icons.Outlined.Warning,
+                    contentDescription = "Warning",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .padding(bottom = 16.dp)
+                )
+                if (state.discTitle != null) {
+                    Text(
+                        text = state.discTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                Text(
+                    text = "This disc isn't in the AccurateRip database. Please insert a different disc.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
+                Button(onClick = { onStateChanged(CalibrationStepState.WaitingForDisc) }) {
+                    Text("Retry")
+                }
+            }
+            is CalibrationStepState.KeyDiscConfirmed -> {
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = "Key Disc Confirmed",
+                    tint = Color(0xFF4CAF50),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .padding(bottom = 16.dp)
+                )
+                if (state.discTitle != null) {
+                    Text(
+                        text = state.discTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Key Disc Confirmed",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+                }
+                Button(onClick = { onStartScan() }) {
                     Text("Start Scan")
                 }
             }
@@ -133,16 +190,13 @@ fun CalibrationStepContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OffsetCalibrationScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: OffsetCalibrationViewModel = viewModel()
 ) {
-    var currentStep by rememberSaveable { mutableIntStateOf(1) }
-    val stepStates = rememberSaveable(saver = CalibrationStepStateListSaver) {
-        mutableStateListOf(
-            CalibrationStepState.WaitingForDisc,
-            CalibrationStepState.WaitingForDisc,
-            CalibrationStepState.WaitingForDisc
-        )
-    }
+    val uiState by viewModel.uiState.collectAsState()
+    val currentStep = uiState.activeStepIndex + 1
+    val stepStates = uiState.steps
+    val calibrationResult = uiState.calibrationResult
 
     Scaffold(
         topBar = {
@@ -167,25 +221,32 @@ fun OffsetCalibrationScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (currentStep > 1) {
-                        TextButton(onClick = { currentStep-- }) {
-                            Text("Back")
+                    if (calibrationResult != null) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Button(onClick = onNavigateBack) {
+                            Text("Finish")
                         }
                     } else {
-                        Spacer(modifier = Modifier.width(64.dp))
-                    }
-
-                    Button(
-                        onClick = {
-                            if (currentStep < 3) {
-                                currentStep++
-                            } else {
-                                onNavigateBack()
+                        if (currentStep > 1) {
+                            TextButton(onClick = { viewModel.setActiveStepIndex(currentStep - 2) }) {
+                                Text("Back")
                             }
-                        },
-                        enabled = stepStates[currentStep - 1] is CalibrationStepState.Success
-                    ) {
-                        Text(if (currentStep < 3) "Next" else "Finish")
+                        } else {
+                            Spacer(modifier = Modifier.width(64.dp))
+                        }
+
+                        Button(
+                            onClick = {
+                                if (currentStep < 3) {
+                                    viewModel.setActiveStepIndex(currentStep)
+                                } else {
+                                    onNavigateBack()
+                                }
+                            },
+                            enabled = stepStates[currentStep - 1] is CalibrationStepState.Success
+                        ) {
+                            Text(if (currentStep < 3) "Next" else "Finish")
+                        }
                     }
                 }
             }
@@ -197,37 +258,79 @@ fun OffsetCalibrationScreen(
                 .padding(innerPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Step indicator
-            Text(
-                text = "Step $currentStep of 3",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(16.dp)
-            )
-
-            // Content area
-            AnimatedContent(
-                targetState = currentStep,
-                transitionSpec = {
-                    if (targetState > initialState) {
-                        (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
-                            slideOutHorizontally { width -> -width } + fadeOut()
+            if (calibrationResult != null) {
+                // Summary Screen
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (calibrationResult.passed) {
+                        Icon(
+                            imageVector = Icons.Outlined.CheckCircle,
+                            contentDescription = "Passed",
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(80.dp).padding(bottom = 16.dp)
+                        )
+                        Text(
+                            text = "Confidence: Pass",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(bottom = 24.dp)
                         )
                     } else {
-                        (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
-                            slideOutHorizontally { width -> width } + fadeOut()
+                        Icon(
+                            imageVector = Icons.Outlined.Warning,
+                            contentDescription = "Warning",
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(80.dp).padding(bottom = 16.dp)
+                        )
+                        Text(
+                            text = "Confidence: Low — consider re-running",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(bottom = 24.dp)
                         )
                     }
-                },
-                modifier = Modifier.weight(1f)
-            ) { targetStep ->
-                CalibrationStepContent(
-                    stepNumber = targetStep,
-                    state = stepStates[targetStep - 1],
-                    onStateChanged = { newState ->
-                        stepStates[targetStep - 1] = newState
-                    },
-                    onStartScan = { /* stubbed out */ }
+
+                    Text(
+                        text = "Offset: ${if (calibrationResult.offset > 0) "+" else ""}${calibrationResult.offset} samples",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                }
+            } else {
+                // Step indicator
+                Text(
+                    text = "Step $currentStep of 3",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(16.dp)
                 )
+
+                // Content area
+                AnimatedContent(
+                    targetState = currentStep,
+                    transitionSpec = {
+                        if (targetState > initialState) {
+                            (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                                slideOutHorizontally { width -> -width } + fadeOut()
+                            )
+                        } else {
+                            (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                                slideOutHorizontally { width -> width } + fadeOut()
+                            )
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { targetStep ->
+                    CalibrationStepContent(
+                        stepNumber = targetStep,
+                        state = stepStates[targetStep - 1],
+                        onStateChanged = { newState ->
+                            if (newState is CalibrationStepState.WaitingForDisc) {
+                                viewModel.resetStep(targetStep - 1)
+                            }
+                        },
+                        onStartScan = { viewModel.startScan(targetStep - 1) }
+                    )
+                }
             }
         }
     }
