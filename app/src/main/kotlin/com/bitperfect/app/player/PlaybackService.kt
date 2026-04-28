@@ -135,26 +135,15 @@ class PlaybackService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
             mediaItems: List<MediaItem>
         ): ListenableFuture<List<MediaItem>> {
-            val outputFolderUri = settingsManager.outputFolderUri
-            val library = libraryRepository.getLibrary(outputFolderUri)
             val resolvedItems = mutableListOf<MediaItem>()
 
             for (mediaItem in mediaItems) {
                 val trackId = mediaItem.mediaId.toLongOrNull() ?: continue
-                var foundTrack: com.bitperfect.app.library.TrackInfo? = null
-
-                // Search for the track across all artists and albums
-                for (artist in library) {
-                    for (album in artist.albums) {
-                        val tracks = libraryRepository.getTracksForAlbum(album.id)
-                        foundTrack = tracks.find { it.id == trackId }
-                        if (foundTrack != null) break
-                    }
-                    if (foundTrack != null) break
-                }
+                val foundTrack = libraryRepository.getTrack(trackId)
 
                 if (foundTrack != null) {
                     val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, trackId)
+                    val albumArtUri = ContentUris.withAppendedId(android.net.Uri.parse("content://media/external/audio/albumart"), foundTrack.albumId)
                     val resolvedItem = MediaItem.Builder()
                         .setMediaId(mediaItem.mediaId)
                         .setUri(uri)
@@ -162,6 +151,7 @@ class PlaybackService : MediaLibraryService() {
                             MediaMetadata.Builder()
                                 .setTitle(foundTrack.title)
                                 .setTrackNumber(foundTrack.trackNumber)
+                                .setArtworkUri(albumArtUri)
                                 .build()
                         )
                         .build()

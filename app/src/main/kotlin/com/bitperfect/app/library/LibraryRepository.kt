@@ -129,4 +129,46 @@ class LibraryRepository(private val context: Context) {
 
         return tracks
     }
+
+    fun getTrack(trackId: Long): TrackInfo? {
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.TRACK,
+            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.ALBUM_ID
+        )
+
+        val selection = "${MediaStore.Audio.Media._ID} = ?"
+        val selectionArgs = arrayOf(trackId.toString())
+
+        context.contentResolver.query(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                val trackCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
+                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+
+                val id = cursor.getLong(idCol)
+                val title = cursor.getString(titleCol) ?: "Unknown Track"
+                val rawTrackNumber = cursor.getInt(trackCol)
+                val durationMs = cursor.getLong(durationCol)
+                val albumId = cursor.getLong(albumIdCol)
+
+                val baseTrackNumber = if (rawTrackNumber >= 1000) rawTrackNumber % 1000 else rawTrackNumber
+                val discNumber = if (rawTrackNumber >= 1000) rawTrackNumber / 1000 else 1
+
+                return TrackInfo(id, title, baseTrackNumber, durationMs, discNumber, albumId)
+            }
+        }
+
+        return null
+    }
 }
