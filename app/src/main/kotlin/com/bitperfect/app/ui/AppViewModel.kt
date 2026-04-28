@@ -16,10 +16,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 import com.bitperfect.app.usb.DeviceStateManager
 import com.bitperfect.app.usb.DriveStatus
+import com.bitperfect.core.models.DiscMetadata
+import com.bitperfect.core.services.MusicBrainzRepository
 
 class AppViewModel(
     application: Application,
@@ -54,6 +57,11 @@ class AppViewModel(
     val currentMediaId: StateFlow<String?> = playerRepository.currentMediaId
     val positionMs: StateFlow<Long> = playerRepository.positionMs
 
+    private val musicBrainzRepository = MusicBrainzRepository(application)
+
+    private val _discMetadata = MutableStateFlow<DiscMetadata?>(null)
+    val discMetadata: StateFlow<DiscMetadata?> = _discMetadata.asStateFlow()
+
     val filteredArtists: StateFlow<List<ArtistInfo>> = combine(artists, searchQuery) { artistsList, query ->
         if (query.isBlank()) {
             artistsList
@@ -82,6 +90,17 @@ class AppViewModel(
                 playerRepository.connect()
             } catch (e: Exception) {
                 // Ignore in tests
+            }
+        }
+        viewModelScope.launch {
+            driveStatus.collect { status ->
+                if (status is DriveStatus.DiscReady && status.toc != null) {
+                    viewModelScope.launch(Dispatchers.IO) {
+                        _discMetadata.value = musicBrainzRepository.lookup(status.toc)
+                    }
+                } else {
+                    _discMetadata.value = null
+                }
             }
         }
     }
