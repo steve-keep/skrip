@@ -24,9 +24,8 @@ class NowPlayingBarTest {
             NowPlayingBar(
                 isPlaying = false,
                 currentTrackTitle = null,
-                onPlayPause = {},
-                onSkipPrev = {},
-                onSkipNext = {}
+                currentAlbumArtUri = null,
+                onPlayPause = {}
             )
         }
 
@@ -40,9 +39,8 @@ class NowPlayingBarTest {
             NowPlayingBar(
                 isPlaying = false,
                 currentTrackTitle = "My Favorite Song",
-                onPlayPause = {},
-                onSkipPrev = {},
-                onSkipNext = {}
+                currentAlbumArtUri = null,
+                onPlayPause = {}
             )
         }
 
@@ -51,27 +49,34 @@ class NowPlayingBarTest {
     }
 
     @Test
+    fun verifyNowPlayingBarWithArtUri() {
+        composeTestRule.setContent {
+            NowPlayingBar(
+                isPlaying = true,
+                currentTrackTitle = "My Favorite Song",
+                currentAlbumArtUri = android.net.Uri.parse("content://media/external/audio/albumart/1"),
+                onPlayPause = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("now_playing_title").assertIsDisplayed()
+    }
+
+    @Test
     fun verifyCallbacksInvoked() {
         var playPauseClicked = false
-        var skipPrevClicked = false
-        var skipNextClicked = false
 
         composeTestRule.setContent {
             NowPlayingBar(
                 isPlaying = false,
                 currentTrackTitle = "Test Song",
-                onPlayPause = { playPauseClicked = true },
-                onSkipPrev = { skipPrevClicked = true },
-                onSkipNext = { skipNextClicked = true }
+                currentAlbumArtUri = null,
+                onPlayPause = { playPauseClicked = true }
             )
         }
 
         composeTestRule.onNodeWithTag("now_playing_play_pause").performClick()
-        composeTestRule.onNodeWithTag("now_playing_skip_prev").performClick()
-        composeTestRule.onNodeWithTag("now_playing_skip_next").performClick()
 
         assert(playPauseClicked)
-        assert(skipPrevClicked)
-        assert(skipNextClicked)
     }
 }

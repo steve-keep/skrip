@@ -16,13 +16,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 import com.bitperfect.app.usb.DeviceStateManager
 import com.bitperfect.app.usb.DriveStatus
-import com.bitperfect.core.models.DiscMetadata
-import com.bitperfect.core.services.MusicBrainzRepository
 
 class AppViewModel(
     application: Application,
@@ -53,14 +50,24 @@ class AppViewModel(
 
     val driveStatus: StateFlow<DriveStatus> = DeviceStateManager.driveStatus
 
+    private val _playingTracks = MutableStateFlow<List<TrackInfo>>(emptyList())
+
     val isPlaying: StateFlow<Boolean> = playerRepository.isPlaying
     val currentMediaId: StateFlow<String?> = playerRepository.currentMediaId
     val positionMs: StateFlow<Long> = playerRepository.positionMs
 
-    private val musicBrainzRepository = MusicBrainzRepository(application)
+    val currentTrackTitle: StateFlow<String?> = combine(_playingTracks, currentMediaId) { playingTracks, mediaId ->
+        playingTracks.find { it.id.toString() == mediaId }?.title
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _discMetadata = MutableStateFlow<DiscMetadata?>(null)
-    val discMetadata: StateFlow<DiscMetadata?> = _discMetadata.asStateFlow()
+    val currentAlbumArtUri: StateFlow<android.net.Uri?> = combine(_playingTracks, currentMediaId) { playingTracks, mediaId ->
+        val albumId = playingTracks.find { it.id.toString() == mediaId }?.albumId
+        if (albumId != null && albumId != -1L) {
+            android.content.ContentUris.withAppendedId(android.net.Uri.parse("content://media/external/audio/albumart"), albumId)
+        } else {
+            null
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val filteredArtists: StateFlow<List<ArtistInfo>> = combine(artists, searchQuery) { artistsList, query ->
         if (query.isBlank()) {
@@ -90,17 +97,6 @@ class AppViewModel(
                 playerRepository.connect()
             } catch (e: Exception) {
                 // Ignore in tests
-            }
-        }
-        viewModelScope.launch {
-            driveStatus.collect { status ->
-                if (status is DriveStatus.DiscReady && status.toc != null) {
-                    viewModelScope.launch(Dispatchers.IO) {
-                        _discMetadata.value = musicBrainzRepository.lookup(status.toc)
-                    }
-                } else {
-                    _discMetadata.value = null
-                }
             }
         }
     }
@@ -137,10 +133,12 @@ class AppViewModel(
     }
 
     fun playAlbum(tracks: List<TrackInfo>) {
+        _playingTracks.value = tracks
         playerRepository.playAlbum(tracks)
     }
 
     fun playTrack(tracks: List<TrackInfo>, index: Int) {
+        _playingTracks.value = tracks
         playerRepository.playTrack(tracks, index)
     }
 
