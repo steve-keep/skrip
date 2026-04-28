@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,6 +54,7 @@ fun NowPlayingBar(
     currentTrackTitle: String?,
     currentAlbumArtUri: Uri?,
     onPlayPause: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var dominantColor by remember { mutableStateOf(Color.Transparent) }
@@ -77,6 +79,7 @@ fun NowPlayingBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable { onClick() }
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(

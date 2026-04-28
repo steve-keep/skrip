@@ -10,6 +10,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLooper
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -25,7 +26,8 @@ class NowPlayingBarTest {
                 isPlaying = false,
                 currentTrackTitle = null,
                 currentAlbumArtUri = null,
-                onPlayPause = {}
+                onPlayPause = {},
+                onClick = {}
             )
         }
 
@@ -40,12 +42,15 @@ class NowPlayingBarTest {
                 isPlaying = false,
                 currentTrackTitle = "My Favorite Song",
                 currentAlbumArtUri = null,
-                onPlayPause = {}
+                onPlayPause = {},
+                onClick = {}
             )
         }
 
-        composeTestRule.onNodeWithTag("now_playing_title").assertIsDisplayed()
-        composeTestRule.onNodeWithText("My Favorite Song").assertIsDisplayed()
+        composeTestRule.mainClock.advanceTimeBy(1000)
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        composeTestRule.onNodeWithTag("now_playing_title", useUnmergedTree = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("My Favorite Song", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -55,11 +60,14 @@ class NowPlayingBarTest {
                 isPlaying = true,
                 currentTrackTitle = "My Favorite Song",
                 currentAlbumArtUri = android.net.Uri.parse("content://media/external/audio/albumart/1"),
-                onPlayPause = {}
+                onPlayPause = {},
+                onClick = {}
             )
         }
 
-        composeTestRule.onNodeWithTag("now_playing_title").assertIsDisplayed()
+        composeTestRule.mainClock.advanceTimeBy(1000)
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        composeTestRule.onNodeWithTag("now_playing_title", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -71,11 +79,14 @@ class NowPlayingBarTest {
                 isPlaying = false,
                 currentTrackTitle = "Test Song",
                 currentAlbumArtUri = null,
-                onPlayPause = { playPauseClicked = true }
+                onPlayPause = { playPauseClicked = true },
+                onClick = {}
             )
         }
 
-        composeTestRule.onNodeWithTag("now_playing_play_pause").performClick()
+        composeTestRule.mainClock.advanceTimeBy(1000)
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        composeTestRule.onNodeWithTag("now_playing_play_pause", useUnmergedTree = true).performClick()
 
         assert(playPauseClicked)
     }

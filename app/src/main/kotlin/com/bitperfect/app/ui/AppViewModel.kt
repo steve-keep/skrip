@@ -56,6 +56,26 @@ class AppViewModel(
     val currentMediaId: StateFlow<String?> = playerRepository.currentMediaId
     val positionMs: StateFlow<Long> = playerRepository.positionMs
 
+    val currentTrack: StateFlow<TrackInfo?> = combine(_playingTracks, currentMediaId) { playingTracks, mediaId ->
+        playingTracks.find { it.id.toString() == mediaId }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val currentAlbum: StateFlow<com.bitperfect.app.library.AlbumInfo?> = combine(artists, currentTrack) { artistsList, track ->
+        if (track?.albumId != null && track.albumId != -1L) {
+            artistsList.flatMap { it.albums }.find { it.id == track.albumId }
+        } else {
+            null
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val currentArtist: StateFlow<ArtistInfo?> = combine(artists, currentAlbum) { artistsList, album ->
+        if (album != null) {
+            artistsList.find { artist -> artist.albums.any { it.id == album.id } }
+        } else {
+            null
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     val currentTrackTitle: StateFlow<String?> = combine(_playingTracks, currentMediaId) { playingTracks, mediaId ->
         playingTracks.find { it.id.toString() == mediaId }?.title
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -156,5 +176,9 @@ class AppViewModel(
 
     fun skipPrev() {
         playerRepository.skipPrev()
+    }
+
+    fun pollPosition() {
+        playerRepository.pollPosition()
     }
 }
