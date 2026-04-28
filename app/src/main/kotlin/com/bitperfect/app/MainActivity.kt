@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
 
             val isPlaying by appViewModel.isPlaying.collectAsState()
             val currentTrackTitle by appViewModel.currentTrackTitle.collectAsState()
+            val currentAlbumArtUri by appViewModel.currentAlbumArtUri.collectAsState()
 
             BitPerfectTheme {
                 Scaffold(
@@ -151,9 +152,8 @@ class MainActivity : ComponentActivity() {
                         NowPlayingBar(
                             isPlaying = isPlaying,
                             currentTrackTitle = currentTrackTitle,
-                            onPlayPause = { appViewModel.togglePlayPause() },
-                            onSkipPrev = { appViewModel.skipPrev() },
-                            onSkipNext = { appViewModel.skipNext() }
+                            currentAlbumArtUri = currentAlbumArtUri,
+                            onPlayPause = { appViewModel.togglePlayPause() }
                         )
                     }
                 ) { innerPadding ->

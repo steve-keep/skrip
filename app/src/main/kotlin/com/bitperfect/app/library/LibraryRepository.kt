@@ -123,7 +123,7 @@ class LibraryRepository(private val context: Context) {
                 val baseTrackNumber = if (rawTrackNumber >= 1000) rawTrackNumber % 1000 else rawTrackNumber
                 val discNumber = if (rawTrackNumber >= 1000) rawTrackNumber / 1000 else 1
 
-                tracks.add(TrackInfo(id, title, baseTrackNumber, durationMs, discNumber))
+                tracks.add(TrackInfo(id, title, baseTrackNumber, durationMs, discNumber, albumId))
             }
         }
 
