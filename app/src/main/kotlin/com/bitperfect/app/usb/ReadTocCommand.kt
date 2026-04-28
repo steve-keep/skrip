@@ -1,0 +1,114 @@
+package com.bitperfect.app.usb
+
+import android.hardware.usb.UsbEndpoint
+import com.bitperfect.core.utils.AppLogger
+import com.bitperfect.core.models.DiscToc
+import com.bitperfect.core.models.TocEntry
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+class ReadTocCommand(
+    private val transport: UsbTransport,
+    private val outEndpoint: UsbEndpoint,
+    private val inEndpoint: UsbEndpoint
+) {
+    fun execute(): DiscToc? {
+        // CBW: 31 bytes
+        val cbw = ByteArray(31)
+        val buffer = ByteBuffer.wrap(cbw).order(ByteOrder.LITTLE_ENDIAN)
+        buffer.putInt(CBW_SIGNATURE) // dCBWSignature
+        buffer.putInt(3)             // dCBWTag (can be anything unique)
+        buffer.putInt(804)           // dCBWDataTransferLength (READ TOC needs 804 bytes max)
+        buffer.put(0x80.toByte())    // bmCBWFlags: 0x80 for IN
+        buffer.put(0)                // bCBWLUN
+        buffer.put(10)               // bCBWCBLength (READ TOC command length)
+
+        // SCSI READ TOC Command Block (10 bytes)
+        buffer.put(0x43)             // Opcode: READ TOC/PMA/ATIP
+        buffer.put(0)                // MSF bit 0 (LBA format)
+        buffer.put(0)                // Format 0b0000
+        buffer.put(0)                // Reserved
+        buffer.put(0)                // Reserved
+        buffer.put(0)                // Reserved
+        buffer.put(0)                // Track/Session Number = 0
+
+        // Byte 7: Allocation Length MSB
+        // Byte 8: Allocation Length LSB
+        // 804 = 0x0324
+        buffer.put(0x03)
+        buffer.put(0x24)
+
+        // Byte 9: Control
+        buffer.put(0)
+
+
+        // Send CBW
+        var transferred = transport.bulkTransfer(outEndpoint, cbw, cbw.size, 5000)
+        if (transferred < 0) {
+            AppLogger.e(TAG, "Failed to send CBW")
+            return null
+        }
+
+        // Read Data
+        val tocData = ByteArray(804)
+        transferred = transport.bulkTransfer(inEndpoint, tocData, tocData.size, 5000)
+        if (transferred < 0) {
+            AppLogger.e(TAG, "Failed to read TOC data")
+            return null
+        }
+
+        // Read CSW (Command Status Wrapper)
+        val csw = ByteArray(13)
+        transferred = transport.bulkTransfer(inEndpoint, csw, csw.size, 5000)
+        if (transferred < 0) {
+            AppLogger.e(TAG, "Failed to read CSW")
+            return null
+        }
+
+        // Validate CSW
+        val cswSignature = ByteBuffer.wrap(csw).order(ByteOrder.LITTLE_ENDIAN).getInt(0)
+        if (cswSignature != CSW_SIGNATURE) {
+            AppLogger.e(TAG, "Invalid CSW signature")
+            return null
+        }
+        if (csw[12] != 0.toByte()) {
+            AppLogger.e(TAG, "CSW indicates command failure: status=${csw[12]}")
+            return null
+        }
+
+        // Parse TOC Data
+        val dataBuffer = ByteBuffer.wrap(tocData).order(ByteOrder.BIG_ENDIAN)
+        val tocDataLength = dataBuffer.getShort(0).toInt() and 0xFFFF
+
+        val entries = mutableListOf<TocEntry>()
+        var leadOutLba = 0
+
+        // Entries start at byte 4. Each entry is 8 bytes.
+        // Number of entries = (tocDataLength - 2) / 8
+        val entryCount = (tocDataLength - 2) / 8
+
+        for (i in 0 until entryCount) {
+            val offset = 4 + (i * 8)
+            val adrControl = tocData[offset + 1].toInt()
+            val trackNumber = tocData[offset + 2].toInt() and 0xFF
+            val lba = dataBuffer.getInt(offset + 4)
+
+            if (trackNumber == 0xAA) {
+                leadOutLba = lba
+            } else {
+                // Check if audio track (Control bit 2 should be 0)
+                if ((adrControl and 0x04) == 0) {
+                    entries.add(TocEntry(trackNumber, lba))
+                }
+            }
+        }
+
+        return DiscToc(entries, leadOutLba)
+    }
+
+    companion object {
+        private const val TAG = "ReadTocCommand"
+        private const val CBW_SIGNATURE = 0x43425355 // "USBC"
+        private const val CSW_SIGNATURE = 0x53425355 // "USBS"
+    }
+}

@@ -19,7 +19,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.nio.ByteBuffer
 
-class UsbDriveDetector(private val context: Context) {
+class UsbDriveDetector(
+    private val context: Context,
+    private val transportFactory: ((android.hardware.usb.UsbDeviceConnection) -> UsbTransport)? = null
+) {
     private val usbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
 
     private val _driveStatus = MutableStateFlow<DriveStatus>(DriveStatus.NoDrive)
@@ -31,7 +34,12 @@ class UsbDriveDetector(private val context: Context) {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 ACTION_USB_PERMISSION -> {
-                    val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    val device: UsbDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    }
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                         device?.let { Thread { interrogateDevice(it) }.start() }
                     } else {
@@ -40,11 +48,21 @@ class UsbDriveDetector(private val context: Context) {
                     }
                 }
                 UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
-                    val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    val device: UsbDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    }
                     device?.let { checkAndRequestPermission(it) }
                 }
                 UsbManager.ACTION_USB_DEVICE_DETACHED -> {
-                    val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    val device: UsbDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    }
                     if (device != null) {
                         // For simplicity, just clearing if any device detached.
                         _driveStatus.value = DriveStatus.NoDrive
@@ -163,7 +181,7 @@ class UsbDriveDetector(private val context: Context) {
         }
 
         try {
-            val transport = DefaultUsbTransport(connection)
+            val transport = transportFactory?.invoke(connection) ?: DefaultUsbTransport(connection)
             val inquiryCommand = ScsiInquiryCommand(transport, outEndpoint, inEndpoint)
 
             val baseInfo = inquiryCommand.execute()
@@ -186,7 +204,12 @@ class UsbDriveDetector(private val context: Context) {
             // TEST UNIT READY
             val isReady = executeTestUnitReady(transport, outEndpoint, inEndpoint)
             if (isReady) {
-                _driveStatus.value = DriveStatus.DiscReady(info)
+                val tocCommand = ReadTocCommand(transport, outEndpoint, inEndpoint)
+                val toc = tocCommand.execute()
+                if (toc == null) {
+                    AppLogger.w(TAG, "TOC is null after DiscReady")
+                }
+                _driveStatus.value = DriveStatus.DiscReady(info, toc)
             } else {
                 _driveStatus.value = DriveStatus.Empty(info)
             }
@@ -202,7 +225,7 @@ class UsbDriveDetector(private val context: Context) {
         }
     }
 
-    private fun executeTestUnitReady(transport: DefaultUsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint): Boolean {
+    private fun executeTestUnitReady(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint): Boolean {
         // CBW: 31 bytes
         val cbw = ByteArray(31)
         val buffer = ByteBuffer.wrap(cbw).order(java.nio.ByteOrder.LITTLE_ENDIAN)
