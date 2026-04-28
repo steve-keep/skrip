@@ -32,7 +32,8 @@ class SettingsScreenTest {
                 settingsManager = settingsManager,
                 driveOffsetRepository = driveOffsetRepository,
                 viewModel = mockViewModel,
-                onNavigateToAbout = {}
+                onNavigateToAbout = {},
+                onCalibrateOffsetClick = {}
             )
         }
 
