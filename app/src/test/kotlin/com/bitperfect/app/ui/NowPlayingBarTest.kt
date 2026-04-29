@@ -25,7 +25,8 @@ class NowPlayingBarTest {
                 isPlaying = false,
                 currentTrackTitle = null,
                 currentAlbumArtUri = null,
-                onPlayPause = {}
+                onPlayPause = {},
+                onClick = {}
             )
         }
 
@@ -40,12 +41,15 @@ class NowPlayingBarTest {
                 isPlaying = false,
                 currentTrackTitle = "My Favorite Song",
                 currentAlbumArtUri = null,
-                onPlayPause = {}
+                onPlayPause = {},
+                onClick = {}
             )
         }
 
-        composeTestRule.onNodeWithTag("now_playing_title").assertIsDisplayed()
-        composeTestRule.onNodeWithText("My Favorite Song").assertIsDisplayed()
+        composeTestRule.mainClock.advanceTimeBy(500) // Advance clock for AnimatedVisibility to complete
+
+        composeTestRule.onNodeWithTag("now_playing_title", useUnmergedTree = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("My Favorite Song", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -55,11 +59,14 @@ class NowPlayingBarTest {
                 isPlaying = true,
                 currentTrackTitle = "My Favorite Song",
                 currentAlbumArtUri = android.net.Uri.parse("content://media/external/audio/albumart/1"),
-                onPlayPause = {}
+                onPlayPause = {},
+                onClick = {}
             )
         }
 
-        composeTestRule.onNodeWithTag("now_playing_title").assertIsDisplayed()
+        composeTestRule.mainClock.advanceTimeBy(500) // Advance clock for AnimatedVisibility to complete
+
+        composeTestRule.onNodeWithTag("now_playing_title", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -71,7 +78,8 @@ class NowPlayingBarTest {
                 isPlaying = false,
                 currentTrackTitle = "Test Song",
                 currentAlbumArtUri = null,
-                onPlayPause = { playPauseClicked = true }
+                onPlayPause = { playPauseClicked = true },
+                onClick = {}
             )
         }
 

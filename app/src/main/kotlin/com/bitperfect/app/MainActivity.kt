@@ -111,6 +111,7 @@ class MainActivity : ComponentActivity() {
                                             AppRoutes.About -> "About"
                                             AppRoutes.Calibration -> "Calibrate Drive Offset"
                                             AppRoutes.TrackList -> selectedAlbumTitle ?: "Album"
+                                            AppRoutes.NowPlaying -> currentTrackTitle ?: "Now Playing"
                                             else -> "BitPerfect"
                                         },
                                         modifier = androidx.compose.ui.Modifier.semantics { testTag = "status_label" }
@@ -154,7 +155,8 @@ class MainActivity : ComponentActivity() {
                             isPlaying = isPlaying,
                             currentTrackTitle = currentTrackTitle,
                             currentAlbumArtUri = currentAlbumArtUri,
-                            onPlayPause = { appViewModel.togglePlayPause() }
+                            onPlayPause = { appViewModel.togglePlayPause() },
+                            onClick = { navController.navigate(AppRoutes.NowPlaying) }
                         )
                     }
                 ) { innerPadding ->
@@ -210,6 +212,11 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(AppRoutes.TrackList) {
                             TrackListScreen(
+                                viewModel = appViewModel
+                            )
+                        }
+                        composable(AppRoutes.NowPlaying) {
+                            NowPlayingScreen(
                                 viewModel = appViewModel
                             )
                         }

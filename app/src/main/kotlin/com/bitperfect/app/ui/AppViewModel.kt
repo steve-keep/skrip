@@ -59,6 +59,22 @@ class AppViewModel(
     val currentTrackTitle: StateFlow<String?> = playerRepository.currentTrackTitle
     val currentAlbumArtUri: StateFlow<android.net.Uri?> = playerRepository.currentAlbumArtUri
 
+    val currentTrack: StateFlow<TrackInfo?> = combine(_playingTracks, currentMediaId) { tracks, mediaId ->
+        if (mediaId != null) {
+            tracks.find { it.id.toString() == mediaId }
+        } else {
+            null
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val currentAlbum: StateFlow<com.bitperfect.app.library.AlbumInfo?> = combine(_artists, currentTrack) { artistsList, track ->
+        if (track != null && track.albumId != -1L) {
+            artistsList.flatMap { it.albums }.find { it.id == track.albumId }
+        } else {
+            null
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     val filteredArtists: StateFlow<List<ArtistInfo>> = combine(artists, searchQuery) { artistsList, query ->
         if (query.isBlank()) {
             artistsList
@@ -146,5 +162,9 @@ class AppViewModel(
 
     fun skipPrev() {
         playerRepository.skipPrev()
+    }
+
+    fun pollPosition() {
+        playerRepository.pollPosition()
     }
 }

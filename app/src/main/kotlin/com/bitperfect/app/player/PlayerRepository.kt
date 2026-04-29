@@ -152,4 +152,10 @@ open class PlayerRepository(
     open fun skipPrev() {
         controller?.seekToPrevious()
     }
+
+    open fun pollPosition() {
+        controller?.let {
+            _positionMs.value = it.currentPosition
+        }
+    }
 }
