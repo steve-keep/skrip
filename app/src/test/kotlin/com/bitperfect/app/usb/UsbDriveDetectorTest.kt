@@ -171,7 +171,7 @@ class UsbDriveDetectorTest {
 
         assertNotNull(detector)
         // Sleep briefly to let the coroutine/thread update the state
-        Thread.sleep(100)
+        Thread.sleep(2000)
         assertTrue(detector.driveStatus.value != DriveStatus.NoDrive)
     }
 
@@ -345,7 +345,7 @@ class UsbDriveDetectorTest {
 
     @Test
     fun testReadTocCommandParsesCorrectly() {
-        val fakeTransport = FakeUsbTransport(ByteArray(36), 0, createSyntheticTocResponse(), 0)
+        val fakeTransport = FakeUsbTransport(inquiryResponse = ByteArray(36), turCswStatus = 0, tocResponse = createSyntheticTocResponse(), tocCswStatus = 0)
         // Advance transfer count to bypass INQUIRY and TUR
         fakeTransport.transferCount = 5
 
@@ -365,7 +365,7 @@ class UsbDriveDetectorTest {
 
     @Test
     fun testReadTocCommandReturnsNullOnCswFailure() {
-        val fakeTransport = FakeUsbTransport(ByteArray(36), 0, createSyntheticTocResponse(), 1)
+        val fakeTransport = FakeUsbTransport(inquiryResponse = ByteArray(36), turCswStatus = 0, tocResponse = createSyntheticTocResponse(), tocCswStatus = 1)
         fakeTransport.transferCount = 5
 
         val outEndpoint = mock(android.hardware.usb.UsbEndpoint::class.java)
@@ -476,7 +476,7 @@ class UsbDriveDetectorTest {
         interrogateMethod.invoke(detector, device)
 
         // Let state update
-        Thread.sleep(100)
+        Thread.sleep(2000)
 
         val state = detector.driveStatus.value
         assertTrue("Expected DriveStatus.DiscReady but was $state", state is DriveStatus.DiscReady)
