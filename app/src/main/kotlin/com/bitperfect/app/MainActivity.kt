@@ -83,7 +83,6 @@ class MainActivity : ComponentActivity() {
             val currentBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = currentBackStackEntry?.destination?.route ?: AppRoutes.DeviceList
 
-            val driveStatus by appViewModel.driveStatus.collectAsState()
             val selectedAlbumTitle by appViewModel.selectedAlbumTitle.collectAsState()
 
             val isPlaying by appViewModel.isPlaying.collectAsState()
@@ -256,7 +255,6 @@ class MainActivity : ComponentActivity() {
                         composable(AppRoutes.DeviceList) {
                             Column(modifier = Modifier.fillMaxSize()) {
                                 DeviceList(
-                                    driveStatus = driveStatus,
                                     viewModel = appViewModel,
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp)
                                 )
