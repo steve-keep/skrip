@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
 
             val isPlaying by appViewModel.isPlaying.collectAsState()
             val currentTrackTitle by appViewModel.currentTrackTitle.collectAsState()
+            val currentTrackArtist by appViewModel.currentTrackArtist.collectAsState()
             val currentAlbumArtUri by appViewModel.currentAlbumArtUri.collectAsState()
 
             val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
@@ -146,6 +147,7 @@ class MainActivity : ComponentActivity() {
                                 NowPlayingBar(
                                     isPlaying = isPlaying,
                                     currentTrackTitle = currentTrackTitle,
+                                    currentTrackArtist = currentTrackArtist,
                                     currentAlbumArtUri = currentAlbumArtUri,
                                     onPlayPause = { appViewModel.togglePlayPause() },
                                     onClick = {
