@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -53,6 +54,7 @@ fun NowPlayingBar(
     currentTrackTitle: String?,
     currentAlbumArtUri: Uri?,
     onPlayPause: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var dominantColor by remember { mutableStateOf(Color.Transparent) }
@@ -77,6 +79,7 @@ fun NowPlayingBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable { onClick() }
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
