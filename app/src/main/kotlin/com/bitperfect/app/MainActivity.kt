@@ -164,7 +164,14 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxWidth()
                                     .graphicsLayer { alpha = progress }
                             ) {
-                                NowPlayingScreen(viewModel = appViewModel)
+                                NowPlayingScreen(
+                                    viewModel = appViewModel,
+                                    onCollapse = {
+                                        coroutineScope.launch {
+                                            bottomSheetScaffoldState.bottomSheetState.partialExpand()
+                                        }
+                                    }
+                                )
                             }
                         }
                     },
