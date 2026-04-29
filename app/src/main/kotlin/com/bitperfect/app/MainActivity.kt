@@ -199,6 +199,7 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(AppRoutes.Calibration) {
                             com.bitperfect.app.ui.calibration.OffsetCalibrationScreen(
+                                driveOffsetRepository = driveOffsetRepository,
                                 onNavigateBack = {
                                     navController.popBackStack()
                                 }

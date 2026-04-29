@@ -83,11 +83,40 @@ class DriveOffsetRepository(private val context: Context) {
         }
     }
 
-    fun findOffset(vendor: String, product: String): DriveOffset? {
-        val currentOffsets = _offsets.value ?: return null
+    fun saveCalibratedOffset(vendor: String, product: String, offset: Int) {
+        val prefs = context.getSharedPreferences("calibrated_offsets_prefs", Context.MODE_PRIVATE)
         val normalizedVendor = vendor.trim().lowercase()
         val normalizedProduct = product.trim().lowercase()
+        val key = "${normalizedVendor}_${normalizedProduct}"
 
+        prefs.edit().putInt(key, offset).apply()
+
+        // Trigger UI recomposition by emitting a new list
+        _offsets.value = _offsets.value?.toList()
+        AppLogger.d(TAG, "Saved calibrated offset $offset for drive $key")
+    }
+
+    fun findOffset(vendor: String, product: String): DriveOffset? {
+        val normalizedVendor = vendor.trim().lowercase()
+        val normalizedProduct = product.trim().lowercase()
+        val key = "${normalizedVendor}_${normalizedProduct}"
+
+        // Check SharedPreferences first
+        val prefs = context.getSharedPreferences("calibrated_offsets_prefs", Context.MODE_PRIVATE)
+        if (prefs.contains(key)) {
+            val savedOffset = prefs.getInt(key, 0)
+            return DriveOffset(
+                drive = "$vendor $product",
+                vendor = vendor,
+                product = product,
+                offset = savedOffset,
+                submissions = 0,
+                agreement = 0
+            )
+        }
+
+        // Fallback to network cache
+        val currentOffsets = _offsets.value ?: return null
         return currentOffsets.find {
             it.vendor.trim().lowercase() == normalizedVendor &&
             it.product.trim().lowercase() == normalizedProduct
