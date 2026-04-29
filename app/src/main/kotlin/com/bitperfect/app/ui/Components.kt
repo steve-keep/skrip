@@ -208,7 +208,8 @@ private fun DiscReadyCard(
 }
 
 @Composable
-fun DeviceList(modifier: Modifier = Modifier, driveStatus: DriveStatus, viewModel: AppViewModel) {
+fun DeviceList(modifier: Modifier = Modifier, viewModel: AppViewModel) {
+    val driveStatus by viewModel.driveStatus.collectAsState()
     val discMetadata by viewModel.discMetadata.collectAsState()
     val coverArtUrl by viewModel.coverArtUrl.collectAsState()
 
@@ -217,7 +218,7 @@ fun DeviceList(modifier: Modifier = Modifier, driveStatus: DriveStatus, viewMode
     }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        when (driveStatus) {
+        when (val currentStatus = driveStatus) {
             is DriveStatus.NoDrive -> { /* Should not be reached, handled above */ }
             is DriveStatus.Connecting -> DriveStatusCard(
                 icon = Icons.Outlined.HourglassEmpty,
@@ -242,7 +243,7 @@ fun DeviceList(modifier: Modifier = Modifier, driveStatus: DriveStatus, viewMode
             )
             is DriveStatus.DiscReady -> {
                 DiscReadyCard(
-                    toc = driveStatus.toc,
+                    toc = currentStatus.toc,
                     discMetadata = discMetadata,
                     coverArtUrl = coverArtUrl
                 )
@@ -250,7 +251,7 @@ fun DeviceList(modifier: Modifier = Modifier, driveStatus: DriveStatus, viewMode
             is DriveStatus.Error -> DriveStatusCard(
                 icon = Icons.Outlined.ErrorOutline,
                 headline = "Drive Error",
-                subtitle = driveStatus.message
+                subtitle = currentStatus.message
             )
         }
     }

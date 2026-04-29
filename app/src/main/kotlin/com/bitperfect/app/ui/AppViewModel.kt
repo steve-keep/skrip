@@ -58,7 +58,7 @@ open class AppViewModel(
     private val _selectedAlbumTitle = MutableStateFlow<String?>(null)
     val selectedAlbumTitle: StateFlow<String?> = _selectedAlbumTitle
 
-    val driveStatus: StateFlow<DriveStatus> = DeviceStateManager.driveStatus
+    open val driveStatus: StateFlow<DriveStatus> = DeviceStateManager.driveStatus
 
     private val _playingTracks = MutableStateFlow<List<TrackInfo>>(emptyList())
 

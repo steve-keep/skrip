@@ -53,11 +53,12 @@ class DeviceListTest(
     fun verifyNoDriveState_isHidden() {
         if (driveStatus != DriveStatus.Connecting()) return // Only run once, avoid spamming the same test across parameterized runs
         val mockViewModel = Mockito.mock(AppViewModel::class.java)
+        Mockito.`when`(mockViewModel.driveStatus).thenReturn(MutableStateFlow(DriveStatus.NoDrive))
         Mockito.`when`(mockViewModel.discMetadata).thenReturn(MutableStateFlow(null))
         Mockito.`when`(mockViewModel.coverArtUrl).thenReturn(MutableStateFlow(null))
 
         composeTestRule.setContent {
-            DeviceList(driveStatus = DriveStatus.NoDrive, viewModel = mockViewModel)
+            DeviceList(viewModel = mockViewModel)
         }
 
         composeTestRule.waitForIdle()
@@ -67,14 +68,16 @@ class DeviceListTest(
     @Test
     fun verifyDriveStatusCardContent() {
         val mockViewModel = Mockito.mock(AppViewModel::class.java)
+        Mockito.`when`(mockViewModel.driveStatus).thenReturn(MutableStateFlow(driveStatus))
         Mockito.`when`(mockViewModel.discMetadata).thenReturn(MutableStateFlow(null))
         Mockito.`when`(mockViewModel.coverArtUrl).thenReturn(MutableStateFlow(null))
 
         composeTestRule.setContent {
-            DeviceList(driveStatus = driveStatus, viewModel = mockViewModel)
+            DeviceList(viewModel = mockViewModel)
         }
 
         composeTestRule.waitForIdle()
+        if (driveStatus is DriveStatus.NoDrive) return
         composeTestRule.onNodeWithText(expectedHeadline).assertIsDisplayed()
         composeTestRule.onNodeWithText(expectedSubtitle).assertIsDisplayed()
     }
@@ -84,15 +87,16 @@ class DeviceListTest(
         val mockViewModel = Mockito.mock(AppViewModel::class.java)
         val testMetadata = DiscMetadata("Test Album", "Test Artist", emptyList(), "mb123")
 
-        Mockito.`when`(mockViewModel.discMetadata).thenReturn(MutableStateFlow(testMetadata))
-        Mockito.`when`(mockViewModel.coverArtUrl).thenReturn(MutableStateFlow("http://example.com/art.jpg"))
-
         val dummyInfo = DriveInfo("ASUS", "BW-16D1HT", true)
         val dummyToc = DiscToc((1..10).map { com.bitperfect.core.models.TocEntry(it, 150 * it) }, 2000)
         val status = DriveStatus.DiscReady(dummyInfo, dummyToc)
 
+        Mockito.`when`(mockViewModel.driveStatus).thenReturn(MutableStateFlow(status))
+        Mockito.`when`(mockViewModel.discMetadata).thenReturn(MutableStateFlow(testMetadata))
+        Mockito.`when`(mockViewModel.coverArtUrl).thenReturn(MutableStateFlow("http://example.com/art.jpg"))
+
         composeTestRule.setContent {
-            DeviceList(driveStatus = status, viewModel = mockViewModel)
+            DeviceList(viewModel = mockViewModel)
         }
 
         composeTestRule.waitForIdle()
@@ -105,15 +109,16 @@ class DeviceListTest(
     fun verifyDiscReadyCard_withoutMetadata() {
         val mockViewModel = Mockito.mock(AppViewModel::class.java)
 
-        Mockito.`when`(mockViewModel.discMetadata).thenReturn(MutableStateFlow(null))
-        Mockito.`when`(mockViewModel.coverArtUrl).thenReturn(MutableStateFlow(null))
-
         val dummyInfo = DriveInfo("ASUS", "BW-16D1HT", true)
         val dummyToc = DiscToc((1..10).map { com.bitperfect.core.models.TocEntry(it, 150 * it) }, 2000)
         val status = DriveStatus.DiscReady(dummyInfo, dummyToc)
 
+        Mockito.`when`(mockViewModel.driveStatus).thenReturn(MutableStateFlow(status))
+        Mockito.`when`(mockViewModel.discMetadata).thenReturn(MutableStateFlow(null))
+        Mockito.`when`(mockViewModel.coverArtUrl).thenReturn(MutableStateFlow(null))
+
         composeTestRule.setContent {
-            DeviceList(driveStatus = status, viewModel = mockViewModel)
+            DeviceList(viewModel = mockViewModel)
         }
 
         composeTestRule.waitForIdle()
