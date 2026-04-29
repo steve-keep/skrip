@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,7 +54,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 
 @Composable
-fun NowPlayingScreen(viewModel: AppViewModel) {
+fun NowPlayingScreen(viewModel: AppViewModel, onCollapse: () -> Unit = {}) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val positionMs by viewModel.positionMs.collectAsState()
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsState()
@@ -77,70 +78,101 @@ fun NowPlayingScreen(viewModel: AppViewModel) {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        dominantColor.copy(alpha = 0.4f),
-                        Color.Transparent
-                    ),
-                    center = Offset(0f, 0f),
-                    radius = 2000f
-                )
-            )
-    ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFF121212)) // Dark background like the screenshot
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Top
     ) {
-        val albumId = currentTrack?.albumId ?: -1L
-        if (albumId != -1L) {
-            val albumArtUri = ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, albumId)
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(albumArtUri)
-                    .allowHardware(false) // Required for Palette
-                    .crossfade(true)
-                    .build(),
-                contentDescription = "Album Art",
-                contentScale = ContentScale.Crop,
+        // Top Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onCollapse) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Collapse",
+                    tint = Color.White
+                )
+            }
+            Text(
+                text = "Now Playing",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+            // Empty box to keep "Now Playing" centered
+            Box(modifier = Modifier.size(48.dp))
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+        ) {
+            // Background Radial Gradient behind Album Cover
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(12.dp)),
-                onState = { state ->
-                    if (state is AsyncImagePainter.State.Success) {
-                        val bitmap = state.result.drawable.toBitmap()
-                        Palette.from(bitmap).generate { palette ->
-                            palette?.dominantSwatch?.rgb?.let { colorInt ->
-                                dominantColor = Color(colorInt)
-                            } ?: run {
-                                dominantColor = Color.Transparent
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                dominantColor.copy(alpha = 0.5f),
+                                Color.Transparent
+                            ),
+                            radius = 1200f
+                        )
+                    )
+            )
+
+            val albumId = currentTrack?.albumId ?: -1L
+            if (albumId != -1L) {
+                val albumArtUri = ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, albumId)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(albumArtUri)
+                        .allowHardware(false) // Required for Palette
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Album Art",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp)),
+                    onState = { state ->
+                        if (state is AsyncImagePainter.State.Success) {
+                            val bitmap = state.result.drawable.toBitmap()
+                            Palette.from(bitmap).generate { palette ->
+                                palette?.dominantSwatch?.rgb?.let { colorInt ->
+                                    dominantColor = Color(colorInt)
+                                } ?: run {
+                                    dominantColor = Color.Transparent
+                                }
                             }
                         }
                     }
-                }
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF141414)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Album,
-                    contentDescription = "No Album Art",
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF141414)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Album,
+                        contentDescription = "No Album Art",
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -149,6 +181,7 @@ fun NowPlayingScreen(viewModel: AppViewModel) {
         Text(
             text = currentTrackTitle ?: "Unknown Track",
             style = MaterialTheme.typography.headlineSmall,
+            color = Color.White,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
@@ -156,12 +189,13 @@ fun NowPlayingScreen(viewModel: AppViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        val artistName = currentAlbum?.title?.let { _ -> viewModel.artists.value.find { it.albums.any { album -> album.id == albumId } }?.name } ?: "Unknown Artist"
+        val currentAlbumId = currentTrack?.albumId ?: -1L
+        val artistName = currentAlbum?.title?.let { _ -> viewModel.artists.value.find { it.albums.any { album -> album.id == currentAlbumId } }?.name } ?: "Unknown Artist"
         val albumTitle = currentAlbum?.title ?: "Unknown Album"
         Text(
             text = "$artistName · $albumTitle",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color(0xFF1DB954), // Bright green matching image
             textAlign = TextAlign.Center
         )
 
@@ -171,11 +205,16 @@ fun NowPlayingScreen(viewModel: AppViewModel) {
         val currentPosition = positionMs.coerceAtMost(durationMs)
         val remainingMs = durationMs - currentPosition
 
-        Slider(
+        androidx.compose.material3.Slider(
             value = currentPosition.toFloat(),
             valueRange = 0f..(durationMs.toFloat().coerceAtLeast(1f)),
             onValueChange = { viewModel.seekTo(it.toLong()) },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.SliderDefaults.colors(
+                thumbColor = Color(0xFF1DB954),
+                activeTrackColor = Color(0xFF1DB954),
+                inactiveTrackColor = Color.DarkGray
+            )
         )
 
         Row(
@@ -208,7 +247,8 @@ fun NowPlayingScreen(viewModel: AppViewModel) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = "Previous",
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(32.dp),
+                    tint = Color.White
                 )
             }
 
@@ -216,8 +256,8 @@ fun NowPlayingScreen(viewModel: AppViewModel) {
                 onClick = { viewModel.togglePlayPause() },
                 modifier = Modifier.size(72.dp),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                color = Color(0xFF1DB954), // Bright green
+                contentColor = Color.Black
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -235,11 +275,11 @@ fun NowPlayingScreen(viewModel: AppViewModel) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = "Next",
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(32.dp),
+                    tint = Color.White
                 )
             }
         }
-    }
     }
 }
 
