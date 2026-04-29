@@ -52,6 +52,8 @@ class DeviceListTest(
 
     @Test
     fun verifyDriveStatusCardContent() {
+        if (driveStatus is DriveStatus.NoDrive) return // DeviceList hides entirely when NoDrive
+
         val mockViewModel = Mockito.mock(AppViewModel::class.java)
         Mockito.`when`(mockViewModel.discMetadata).thenReturn(MutableStateFlow(null))
         Mockito.`when`(mockViewModel.coverArtUrl).thenReturn(MutableStateFlow(null))

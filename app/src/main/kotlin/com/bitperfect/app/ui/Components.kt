@@ -230,13 +230,11 @@ fun DeviceList(modifier: Modifier = Modifier, driveStatus: DriveStatus, viewMode
     val coverArtUrl by viewModel.coverArtUrl.collectAsState()
     val isKeyDisc by viewModel.isKeyDisc.collectAsState()
 
+    if (driveStatus is DriveStatus.NoDrive) return
+
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when (driveStatus) {
-            is DriveStatus.NoDrive -> DriveStatusCard(
-                icon = Icons.Outlined.UsbOff,
-                headline = "No Drive Connected",
-                subtitle = "Connect a USB CD drive via OTG"
-            )
+            is DriveStatus.NoDrive -> return // Handled above, but required for exhaustiveness
             is DriveStatus.Connecting -> DriveStatusCard(
                 icon = Icons.Outlined.HourglassEmpty,
                 headline = "Connecting…",
