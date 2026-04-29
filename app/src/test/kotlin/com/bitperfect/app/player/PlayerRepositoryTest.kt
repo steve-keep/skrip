@@ -157,6 +157,39 @@ class PlayerRepositoryTest {
     }
 
     @Test
+    fun `test addToQueue with null controller does not crash`() = runTest {
+        val mockContext = mock(Context::class.java)
+        `when`(mockContext.packageName).thenReturn("com.bitperfect.app")
+
+        val repository = PlayerRepository(mockContext)
+
+        // Calling with null controller simply doesn't crash
+        repository.addToQueue(TrackInfo(1L, "Track 1", 1, 180000L))
+    }
+
+    @Test
+    fun `test playNext with null controller does not crash`() = runTest {
+        val mockContext = mock(Context::class.java)
+        `when`(mockContext.packageName).thenReturn("com.bitperfect.app")
+
+        val repository = PlayerRepository(mockContext)
+
+        // Calling with null controller simply doesn't crash
+        repository.playNext(TrackInfo(1L, "Track 1", 1, 180000L))
+    }
+
+    @Test
+    fun `test clearQueue with null controller does not crash`() = runTest {
+        val mockContext = mock(Context::class.java)
+        `when`(mockContext.packageName).thenReturn("com.bitperfect.app")
+
+        val repository = PlayerRepository(mockContext)
+
+        // Calling with null controller simply doesn't crash
+        repository.clearQueue()
+    }
+
+    @Test
     fun `test togglePlayPause with null controller`() = runTest {
         val mockContext = mock(Context::class.java)
         `when`(mockContext.packageName).thenReturn("com.bitperfect.app")

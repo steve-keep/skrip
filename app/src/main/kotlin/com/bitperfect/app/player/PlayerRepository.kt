@@ -131,6 +131,49 @@ open class PlayerRepository(
         }
     }
 
+    open fun addToQueue(track: TrackInfo) {
+        val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, track.id)
+        val albumArtUri = if (track.albumId != -1L) ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"), track.albumId) else null
+        val mediaItem = MediaItem.Builder()
+            .setUri(uri)
+            .setMediaId(track.id.toString())
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(track.title)
+                    .setTrackNumber(track.trackNumber)
+                    .setArtworkUri(albumArtUri)
+                    .build()
+            )
+            .build()
+        controller?.addMediaItem(mediaItem)
+    }
+
+    open fun playNext(track: TrackInfo) {
+        val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, track.id)
+        val albumArtUri = if (track.albumId != -1L) ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"), track.albumId) else null
+        val mediaItem = MediaItem.Builder()
+            .setUri(uri)
+            .setMediaId(track.id.toString())
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(track.title)
+                    .setTrackNumber(track.trackNumber)
+                    .setArtworkUri(albumArtUri)
+                    .build()
+            )
+            .build()
+        controller?.let {
+            it.addMediaItem(it.nextMediaItemIndex, mediaItem)
+        }
+    }
+
+    open fun clearQueue() {
+        controller?.let { c ->
+            c.removeMediaItems(c.currentMediaItemIndex + 1, c.mediaItemCount)
+            c.removeMediaItems(0, c.currentMediaItemIndex)
+        }
+    }
+
     open fun togglePlayPause() {
         controller?.let {
             if (it.isPlaying) {
