@@ -14,7 +14,10 @@ import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bitperfect.core.services.DriveOffsetRepository
 import kotlinx.coroutines.delay
 
 sealed class CalibrationStepState {
@@ -190,15 +193,42 @@ fun CalibrationStepContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OffsetCalibrationScreen(
+    driveOffsetRepository: DriveOffsetRepository,
     onNavigateBack: () -> Unit,
-    viewModel: OffsetCalibrationViewModel = viewModel()
+    viewModel: OffsetCalibrationViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return OffsetCalibrationViewModel(
+                    driveOffsetRepository = driveOffsetRepository
+                ) as T
+            }
+        }
+    )
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentStep = uiState.activeStepIndex + 1
     val stepStates = uiState.steps
     val calibrationResult = uiState.calibrationResult
+    val saveState = uiState.saveState
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(saveState) {
+        when (saveState) {
+            is SaveState.Finished -> {
+                onNavigateBack()
+            }
+            is SaveState.Error -> {
+                snackbarHostState.showSnackbar(saveState.message)
+                viewModel.resetSaveState()
+            }
+            else -> {}
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Calibrate Drive Offset") },
@@ -223,7 +253,16 @@ fun OffsetCalibrationScreen(
                 ) {
                     if (calibrationResult != null) {
                         Spacer(modifier = Modifier.weight(1f))
-                        Button(onClick = onNavigateBack) {
+                        Button(
+                            onClick = { viewModel.saveOffset(calibrationResult.offset) },
+                            enabled = saveState !is SaveState.Saving
+                        ) {
+                            if (saveState is SaveState.Saving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp).padding(end = 8.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
                             Text("Finish")
                         }
                     } else {
