@@ -14,9 +14,16 @@ import android.os.Build
 import com.bitperfect.core.utils.AppLogger
 import android.util.Log
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 
 class UsbDriveDetector(
@@ -27,6 +34,15 @@ class UsbDriveDetector(
 
     private val _driveStatus = MutableStateFlow<DriveStatus>(DriveStatus.NoDrive)
     val driveStatus: StateFlow<DriveStatus> = _driveStatus.asStateFlow()
+
+    private var usbConnection: android.hardware.usb.UsbDeviceConnection? = null
+    private var massStorageInterface: UsbInterface? = null
+    private var transport: UsbTransport? = null
+    private var inEndpoint: UsbEndpoint? = null
+    private var outEndpoint: UsbEndpoint? = null
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var pollingJob: Job? = null
 
     private val ACTION_USB_PERMISSION = "com.bitperfect.app.USB_PERMISSION"
 
@@ -66,6 +82,8 @@ class UsbDriveDetector(
                     if (device != null) {
                         // For simplicity, just clearing if any device detached.
                         _driveStatus.value = DriveStatus.NoDrive
+                        pollingJob?.cancel()
+                        cleanupConnection()
                     }
                 }
             }
@@ -101,6 +119,23 @@ class UsbDriveDetector(
 
     fun destroy() {
         context.unregisterReceiver(usbReceiver)
+        pollingJob?.cancel()
+        cleanupConnection()
+    }
+
+    private fun cleanupConnection() {
+        try {
+            massStorageInterface?.let { usbConnection?.releaseInterface(it) }
+            usbConnection?.close()
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Error cleaning up USB connection", e)
+        } finally {
+            usbConnection = null
+            massStorageInterface = null
+            transport = null
+            inEndpoint = null
+            outEndpoint = null
+        }
     }
 
     private fun isMassStorageDevice(device: UsbDevice): Boolean {
@@ -180,18 +215,28 @@ class UsbDriveDetector(
             return
         }
 
+        // Keep local references that will be assigned to class properties
+        val transportLocal = transportFactory?.invoke(connection) ?: DefaultUsbTransport(connection)
+
+        this.usbConnection = connection
+        this.massStorageInterface = massStorageInterface
+        this.transport = transportLocal
+        this.inEndpoint = inEndpoint
+        this.outEndpoint = outEndpoint
+
         try {
-            val transport = transportFactory?.invoke(connection) ?: DefaultUsbTransport(connection)
-            val inquiryCommand = ScsiInquiryCommand(transport, outEndpoint, inEndpoint)
+            val inquiryCommand = ScsiInquiryCommand(transportLocal, outEndpoint, inEndpoint)
 
             val baseInfo = inquiryCommand.execute()
             if (baseInfo == null) {
                 _driveStatus.value = DriveStatus.Error("INQUIRY command failed")
+                cleanupConnection()
                 return
             }
 
             if (!baseInfo.isOptical) {
                 _driveStatus.value = DriveStatus.NotOptical
+                cleanupConnection()
                 return
             }
 
@@ -202,95 +247,140 @@ class UsbDriveDetector(
             )
 
             // TEST UNIT READY
-            val isReady = executeTestUnitReady(transport, outEndpoint, inEndpoint)
+            val isReady = executeTestUnitReady(transportLocal, outEndpoint, inEndpoint)
             if (isReady) {
-                val tocCommand = ReadTocCommand(transport, outEndpoint, inEndpoint)
-                var toc: com.bitperfect.core.models.DiscToc? = null
-                for (attempt in 1..3) {
-                    toc = tocCommand.execute()
-                    if (toc != null) break
-                    if (attempt < 3) {
-                        Thread.sleep(500)
-                    }
-                }
-                if (toc == null) {
-                    AppLogger.w(TAG, "TOC is null after DiscReady")
-                }
+                val toc = readTocWithRetry(transportLocal, outEndpoint, inEndpoint)
                 _driveStatus.value = DriveStatus.DiscReady(info, toc)
             } else {
                 _driveStatus.value = DriveStatus.Empty(info)
             }
 
+            // Start polling loop which takes ownership of cleaning up the connection
+            startPollingLoop(info)
+
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error interrogating device", e)
-            // Try to extract existing info from state if we hit an error later in the process
             val currentInfo = _driveStatus.value.info
             _driveStatus.value = DriveStatus.Error(e.message ?: "Unknown error", currentInfo)
-        } finally {
-            connection.releaseInterface(massStorageInterface)
-            connection.close()
+            cleanupConnection()
+        }
+    }
+
+    private fun startPollingLoop(info: DriveInfo) {
+        pollingJob?.cancel()
+        pollingJob = scope.launch {
+            try {
+                var cbwTag = 100 // Start from a reasonably high tag to avoid overlap with interrogate
+                while (isActive) {
+                    delay(2000)
+
+                    val currentTransport = transport
+                    val currentOutEndpoint = outEndpoint
+                    val currentInEndpoint = inEndpoint
+
+                    if (currentTransport == null || currentOutEndpoint == null || currentInEndpoint == null) {
+                        break
+                    }
+
+                    val isReady = executeSingleTestUnitReady(currentTransport, currentOutEndpoint, currentInEndpoint, cbwTag)
+                    cbwTag += 2
+
+                    val currentStatus = _driveStatus.value
+                    if (isReady && currentStatus is DriveStatus.Empty) {
+                        val toc = readTocWithRetry(currentTransport, currentOutEndpoint, currentInEndpoint)
+                        _driveStatus.value = DriveStatus.DiscReady(info, toc)
+                    } else if (!isReady && currentStatus is DriveStatus.DiscReady) {
+                        _driveStatus.value = DriveStatus.Empty(info)
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "Error in polling loop", e)
+            } finally {
+                cleanupConnection()
+            }
         }
     }
 
     private fun executeTestUnitReady(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint): Boolean {
         for (attempt in 1..10) {
-            // CBW: 31 bytes
-            val cbw = ByteArray(31)
-            val buffer = ByteBuffer.wrap(cbw).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            buffer.putInt(0x43425355) // dCBWSignature
-            buffer.putInt(attempt * 2) // dCBWTag (can be anything unique)
-            buffer.putInt(0)          // dCBWDataTransferLength (TUR has no data phase)
-            buffer.put(0x00.toByte()) // bmCBWFlags: 0x00 for OUT / no data
-            buffer.put(0)             // bCBWLUN
-            buffer.put(6)             // bCBWCBLength
-
-            // SCSI TEST UNIT READY Command Block (6 bytes)
-            buffer.put(0x00)          // Opcode: TEST UNIT READY
-            buffer.put(0)
-            buffer.put(0)
-            buffer.put(0)
-            buffer.put(0)
-            buffer.put(0)
-
-            // Send CBW
-            var transferred = transport.bulkTransfer(outEndpoint, cbw, cbw.size, 5000)
-            if (transferred < 0) {
-                AppLogger.e(TAG, "TUR: Failed to send CBW on attempt $attempt")
-                return false
+            if (executeSingleTestUnitReady(transport, outEndpoint, inEndpoint, attempt * 2)) {
+                return true
             }
-
-            // No Data phase for TUR
-
-            // Read CSW (Command Status Wrapper)
-            val csw = ByteArray(13)
-            transferred = transport.bulkTransfer(inEndpoint, csw, csw.size, 5000)
-            if (transferred < 0) {
-                AppLogger.e(TAG, "TUR: Failed to read CSW on attempt $attempt")
-                return false
+            if (attempt < 10) {
+                Thread.sleep(1000)
             }
-
-            // Validate CSW
-            val cswBuffer = ByteBuffer.wrap(csw).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            val cswSignature = cswBuffer.getInt(0)
-            if (cswSignature != 0x53425355) {
-                AppLogger.e(TAG, "TUR: Invalid CSW signature on attempt $attempt")
-                return false
-            }
-            val status = csw[12]
-            if (status != 0.toByte()) {
-                AppLogger.d(TAG, "TUR: Drive not ready (status=$status) on attempt $attempt")
-                executeRequestSense(transport, outEndpoint, inEndpoint, attempt * 2 + 1)
-                if (attempt < 10) {
-                    Thread.sleep(1000)
-                }
-                continue
-            }
-
-            return true
         }
-
         AppLogger.w(TAG, "TUR: Exhausted all attempts, drive not ready")
         return false
+    }
+
+    private fun executeSingleTestUnitReady(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint, tag: Int): Boolean {
+        // CBW: 31 bytes
+        val cbw = ByteArray(31)
+        val buffer = ByteBuffer.wrap(cbw).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.putInt(0x43425355) // dCBWSignature
+        buffer.putInt(tag)        // dCBWTag (can be anything unique)
+        buffer.putInt(0)          // dCBWDataTransferLength (TUR has no data phase)
+        buffer.put(0x00.toByte()) // bmCBWFlags: 0x00 for OUT / no data
+        buffer.put(0)             // bCBWLUN
+        buffer.put(6)             // bCBWCBLength
+
+        // SCSI TEST UNIT READY Command Block (6 bytes)
+        buffer.put(0x00)          // Opcode: TEST UNIT READY
+        buffer.put(0)
+        buffer.put(0)
+        buffer.put(0)
+        buffer.put(0)
+        buffer.put(0)
+
+        // Send CBW
+        var transferred = transport.bulkTransfer(outEndpoint, cbw, cbw.size, 5000)
+        if (transferred < 0) {
+            AppLogger.e(TAG, "TUR: Failed to send CBW on tag $tag")
+            return false
+        }
+
+        // No Data phase for TUR
+
+        // Read CSW (Command Status Wrapper)
+        val csw = ByteArray(13)
+        transferred = transport.bulkTransfer(inEndpoint, csw, csw.size, 5000)
+        if (transferred < 0) {
+            AppLogger.e(TAG, "TUR: Failed to read CSW on tag $tag")
+            return false
+        }
+
+        // Validate CSW
+        val cswBuffer = ByteBuffer.wrap(csw).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        val cswSignature = cswBuffer.getInt(0)
+        if (cswSignature != 0x53425355) {
+            AppLogger.e(TAG, "TUR: Invalid CSW signature on tag $tag")
+            return false
+        }
+        val status = csw[12]
+        if (status != 0.toByte()) {
+            AppLogger.d(TAG, "TUR: Drive not ready (status=$status) on tag $tag")
+            executeRequestSense(transport, outEndpoint, inEndpoint, tag + 1)
+            return false
+        }
+
+        return true
+    }
+
+    private fun readTocWithRetry(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint): com.bitperfect.core.models.DiscToc? {
+        val tocCommand = ReadTocCommand(transport, outEndpoint, inEndpoint)
+        var toc: com.bitperfect.core.models.DiscToc? = null
+        for (attempt in 1..3) {
+            toc = tocCommand.execute()
+            if (toc != null) break
+            if (attempt < 3) {
+                Thread.sleep(500)
+            }
+        }
+        if (toc == null) {
+            AppLogger.w(TAG, "TOC is null after DiscReady")
+        }
+        return toc
     }
 
     private fun executeRequestSense(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint, tag: Int) {
