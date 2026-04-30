@@ -172,7 +172,7 @@ class AppViewModelTest {
         assertEquals(null, viewModel.discMetadata.value)
 
         job.cancel()
-        job.join() // Explicitly wait for cancellation to complete to avoid UncompletedCoroutinesError
+        advanceUntilIdle() // Ensure cancellation propagates completely
     }
 
     @Test
