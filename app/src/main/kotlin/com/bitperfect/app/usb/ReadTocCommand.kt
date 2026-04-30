@@ -12,12 +12,12 @@ class ReadTocCommand(
     private val outEndpoint: UsbEndpoint,
     private val inEndpoint: UsbEndpoint
 ) {
-    fun execute(): DiscToc? {
+    fun execute(tag: Int = 3): DiscToc? {
         // CBW: 31 bytes
         val cbw = ByteArray(31)
         val buffer = ByteBuffer.wrap(cbw).order(ByteOrder.LITTLE_ENDIAN)
         buffer.putInt(CBW_SIGNATURE) // dCBWSignature
-        buffer.putInt(3)             // dCBWTag (can be anything unique)
+        buffer.putInt(tag)           // dCBWTag (can be anything unique)
         buffer.putInt(804)           // dCBWDataTransferLength (READ TOC needs 804 bytes max)
         buffer.put(0x80.toByte())    // bmCBWFlags: 0x80 for IN
         buffer.put(0)                // bCBWLUN
