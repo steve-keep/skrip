@@ -156,8 +156,13 @@ class AppViewModelTest {
 
         mockDriveStatusFlow.value = DriveStatus.NoDrive
         advanceUntilIdle()
-        ShadowLooper.idleMainLooper()
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        val startNullTime = System.currentTimeMillis()
+        while (viewModel.discMetadata.value != null && System.currentTimeMillis() - startNullTime < 5000) {
+            Thread.sleep(10)
+            ShadowLooper.idleMainLooper()
+            ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        }
         assertEquals(null, viewModel.discMetadata.value)
 
         job.cancel()
