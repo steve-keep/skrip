@@ -125,6 +125,7 @@ class AppViewModelTest {
 
         assertEquals(dummyMetadata, viewModel.discMetadata.value)
         job.cancel()
+        job.join()
     }
 
     @Test
@@ -171,6 +172,7 @@ class AppViewModelTest {
         assertEquals(null, viewModel.discMetadata.value)
 
         job.cancel()
+        job.join() // Explicitly wait for cancellation to complete to avoid UncompletedCoroutinesError
     }
 
     @Test
@@ -185,6 +187,7 @@ class AppViewModelTest {
 
         assertEquals(null, viewModel.discMetadata.value)
         job.cancel()
+        job.join()
     }
 
     @Test
@@ -238,6 +241,8 @@ class AppViewModelTest {
 
         job.cancel()
         job2.cancel()
+        job.join()
+        job2.join()
     }
 
     @Test
