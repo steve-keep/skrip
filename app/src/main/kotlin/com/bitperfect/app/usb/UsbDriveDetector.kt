@@ -287,7 +287,7 @@ class UsbDriveDetector(
 
                     val currentStatus = _driveStatus.value
                     if (isReady && currentStatus is DriveStatus.Empty) {
-                        val toc = readTocWithRetry(currentTransport, currentOutEndpoint, currentInEndpoint)
+                        val toc = readTocWithRetry(currentTransport, currentOutEndpoint, currentInEndpoint, cbwTag + 50)
                         _driveStatus.value = DriveStatus.DiscReady(info, toc)
                     } else if (!isReady && currentStatus is DriveStatus.DiscReady) {
                         _driveStatus.value = DriveStatus.Empty(info)
@@ -367,11 +367,11 @@ class UsbDriveDetector(
         return true
     }
 
-    private fun readTocWithRetry(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint): com.bitperfect.core.models.DiscToc? {
+    private fun readTocWithRetry(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint, tagOffset: Int = 50): com.bitperfect.core.models.DiscToc? {
         val tocCommand = ReadTocCommand(transport, outEndpoint, inEndpoint)
         var toc: com.bitperfect.core.models.DiscToc? = null
         for (attempt in 1..3) {
-            toc = tocCommand.execute()
+            toc = tocCommand.execute(tagOffset + attempt - 1)
             if (toc != null) break
             if (attempt < 3) {
                 Thread.sleep(500)
