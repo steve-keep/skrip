@@ -111,6 +111,12 @@ class AppViewModelTest {
         val job = launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.discMetadata.collect {}
         }
+        val jobTrack = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.currentTrack.collect {}
+        }
+        val jobAlbum = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.currentAlbum.collect {}
+        }
 
         mockDriveStatusFlow.value = DriveStatus.DiscReady(DriveInfo("Vendor", "Product", true), dummyToc)
         advanceUntilIdle()
@@ -125,7 +131,11 @@ class AppViewModelTest {
 
         assertEquals(dummyMetadata, viewModel.discMetadata.value)
         job.cancel()
+        jobTrack.cancel()
+        jobAlbum.cancel()
         job.join()
+        jobTrack.join()
+        jobAlbum.join()
     }
 
     @Test
@@ -147,6 +157,12 @@ class AppViewModelTest {
 
         val job = launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.discMetadata.collect {}
+        }
+        val jobTrack = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.currentTrack.collect {}
+        }
+        val jobAlbum = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.currentAlbum.collect {}
         }
 
         mockDriveStatusFlow.value = DriveStatus.DiscReady(DriveInfo("Vendor", "Product", true), dummyToc)
@@ -172,13 +188,23 @@ class AppViewModelTest {
         assertEquals(null, viewModel.discMetadata.value)
 
         job.cancel()
+        jobTrack.cancel()
+        jobAlbum.cancel()
         job.join() // Explicitly wait for cancellation to complete to avoid UncompletedCoroutinesError
+        jobTrack.join()
+        jobAlbum.join()
     }
 
     @Test
     fun testDiscMetadataStaysNullOnDiscReadyNullToc() = runTest {
         val job = launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.discMetadata.collect {}
+        }
+        val jobTrack = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.currentTrack.collect {}
+        }
+        val jobAlbum = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.currentAlbum.collect {}
         }
 
         mockDriveStatusFlow.value = DriveStatus.DiscReady(DriveInfo("Vendor", "Product", true), null)
@@ -187,7 +213,11 @@ class AppViewModelTest {
 
         assertEquals(null, viewModel.discMetadata.value)
         job.cancel()
+        jobTrack.cancel()
+        jobAlbum.cancel()
         job.join()
+        jobTrack.join()
+        jobAlbum.join()
     }
 
     @Test
@@ -218,6 +248,9 @@ class AppViewModelTest {
         val job3 = launch(UnconfinedTestDispatcher(testScheduler)) {
             vm.currentTrack.collect {}
         }
+        val job4 = launch(UnconfinedTestDispatcher(testScheduler)) {
+            vm.currentAlbum.collect {}
+        }
 
         vm.playAlbum(tracks)
         mutableCurrentMediaId.value = "1"
@@ -245,9 +278,11 @@ class AppViewModelTest {
         job.cancel()
         job2.cancel()
         job3.cancel()
+        job4.cancel()
         job.join()
         job2.join()
         job3.join()
+        job4.join()
     }
 
     @Test
