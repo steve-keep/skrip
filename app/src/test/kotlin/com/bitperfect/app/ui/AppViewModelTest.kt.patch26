@@ -1,5 +1,5 @@
---- AppViewModelTest.kt
-+++ AppViewModelTest.kt
+--- app/src/test/kotlin/com/bitperfect/app/ui/AppViewModelTest.kt
++++ app/src/test/kotlin/com/bitperfect/app/ui/AppViewModelTest.kt
 @@ -165,9 +165,7 @@
          Thread.sleep(100)
          ShadowLooper.runUiThreadTasksIncludingDelayedTasks()

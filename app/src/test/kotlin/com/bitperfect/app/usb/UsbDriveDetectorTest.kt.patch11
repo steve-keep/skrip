@@ -1,0 +1,10 @@
+--- app/src/test/kotlin/com/bitperfect/app/usb/UsbDriveDetectorTest.kt
++++ app/src/test/kotlin/com/bitperfect/app/usb/UsbDriveDetectorTest.kt
+@@ -522,6 +522,7 @@
+         // Let state update
+         var attempts = 0
+         while (detector.driveStatus.value !is DriveStatus.DiscReady && attempts < 100) {
++            fakeTransport.state = "TUR_CBW" // Force TUR to run in polling loop just in case
+             Thread.sleep(50)
+             org.robolectric.shadows.ShadowLooper.idleMainLooper()
+             org.robolectric.shadows.ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
