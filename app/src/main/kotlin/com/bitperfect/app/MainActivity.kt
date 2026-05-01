@@ -104,7 +104,8 @@ class MainActivity : ComponentActivity() {
             val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
                 bottomSheetState = rememberStandardBottomSheetState(
                     initialValue = SheetValue.Hidden,
-                    skipHiddenState = false
+                    skipHiddenState = false,
+                    confirmValueChange = { it != SheetValue.Hidden }
                 )
             )
 
@@ -123,12 +124,6 @@ class MainActivity : ComponentActivity() {
                     // Only partial expand if we were completely hidden, to avoid collapsing the full screen player when track changes
                     if (bottomSheetScaffoldState.bottomSheetState.currentValue == SheetValue.Hidden) {
                         bottomSheetScaffoldState.bottomSheetState.partialExpand()
-                    }
-                } else {
-                    // Slight delay to prevent flickering closed during track transitions
-                    kotlinx.coroutines.delay(300)
-                    if (appViewModel.currentTrackTitle.value == null) {
-                        bottomSheetScaffoldState.bottomSheetState.hide()
                     }
                 }
             }
