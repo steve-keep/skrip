@@ -254,8 +254,8 @@ class UsbDriveDetector(
             // TEST UNIT READY
             val isReady = executeTestUnitReady(transportLocal, outEndpoint, inEndpoint)
             if (isReady) {
-                val toc = readTocWithRetry(transportLocal, outEndpoint, inEndpoint)
-                _driveStatus.value = DriveStatus.DiscReady(info, toc)
+                val tocResult = readTocWithRetry(transportLocal, outEndpoint, inEndpoint)
+                _driveStatus.value = DriveStatus.DiscReady(info, tocResult?.first, tocResult?.second)
             } else {
                 _driveStatus.value = DriveStatus.Empty(info)
             }
@@ -292,8 +292,8 @@ class UsbDriveDetector(
 
                     val currentStatus = _driveStatus.value
                     if (isReady && currentStatus is DriveStatus.Empty) {
-                        val toc = readTocWithRetry(currentTransport, currentOutEndpoint, currentInEndpoint, cbwTag + 50)
-                        _driveStatus.value = DriveStatus.DiscReady(info, toc)
+                        val tocResult = readTocWithRetry(currentTransport, currentOutEndpoint, currentInEndpoint, cbwTag + 50)
+                        _driveStatus.value = DriveStatus.DiscReady(info, tocResult?.first, tocResult?.second)
                     } else if (!isReady && (currentStatus is DriveStatus.DiscReady || currentStatus is DriveStatus.Error)) {
                         _driveStatus.value = DriveStatus.Empty(info)
                     }
@@ -372,20 +372,20 @@ class UsbDriveDetector(
         return true
     }
 
-    private fun readTocWithRetry(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint, tagOffset: Int = 50): com.bitperfect.core.models.DiscToc? {
+    private fun readTocWithRetry(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint, tagOffset: Int = 50): Pair<com.bitperfect.core.models.DiscToc, ByteArray>? {
         val tocCommand = ReadTocCommand(transport, outEndpoint, inEndpoint)
-        var toc: com.bitperfect.core.models.DiscToc? = null
+        var tocResult: Pair<com.bitperfect.core.models.DiscToc, ByteArray>? = null
         for (attempt in 1..3) {
-            toc = tocCommand.execute(tagOffset + attempt - 1)
-            if (toc != null) break
+            tocResult = tocCommand.execute(tagOffset + attempt - 1)
+            if (tocResult != null) break
             if (attempt < 3) {
                 Thread.sleep(500)
             }
         }
-        if (toc == null) {
+        if (tocResult == null) {
             AppLogger.w(TAG, "TOC is null after DiscReady")
         }
-        return toc
+        return tocResult
     }
 
     private fun executeRequestSense(transport: UsbTransport, outEndpoint: UsbEndpoint, inEndpoint: UsbEndpoint, tag: Int) {

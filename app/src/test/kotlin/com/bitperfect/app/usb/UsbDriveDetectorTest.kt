@@ -398,14 +398,15 @@ class UsbDriveDetectorTest {
         val inEndpoint = mock(android.hardware.usb.UsbEndpoint::class.java)
 
         val command = ReadTocCommand(fakeTransport, outEndpoint, inEndpoint)
-        val toc = command.execute()
+        val result = command.execute()
 
-        assertNotNull(toc)
-        assertEquals(3, toc?.trackCount)
-        assertEquals(150, toc?.tracks?.get(0)?.lba)
-        assertEquals(16150, toc?.tracks?.get(1)?.lba)
-        assertEquals(32150, toc?.tracks?.get(2)?.lba)
-        assertEquals(48150, toc?.leadOutLba)
+        assertNotNull(result)
+        val toc = result!!.first
+        assertEquals(3, toc.trackCount)
+        assertEquals(150, toc.tracks.get(0).lba)
+        assertEquals(16150, toc.tracks.get(1).lba)
+        assertEquals(32150, toc.tracks.get(2).lba)
+        assertEquals(48150, toc.leadOutLba)
     }
 
     @Test
@@ -417,9 +418,9 @@ class UsbDriveDetectorTest {
         val inEndpoint = mock(android.hardware.usb.UsbEndpoint::class.java)
 
         val command = ReadTocCommand(fakeTransport, outEndpoint, inEndpoint)
-        val toc = command.execute()
+        val result = command.execute()
 
-        assertNull(toc)
+        assertNull(result)
     }
 
     @Test

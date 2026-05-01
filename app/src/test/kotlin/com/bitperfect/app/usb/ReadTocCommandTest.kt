@@ -115,10 +115,11 @@ class ReadTocCommandTest {
     fun `test normalises zero based LBA`() {
         setupMockTransfer(0)
 
-        val toc = readTocCommand.execute(3)
+        val result = readTocCommand.execute(3)
 
-        assertNotNull(toc)
-        assertEquals(3, toc!!.tracks.size)
+        assertNotNull(result)
+        val toc = result!!.first
+        assertEquals(3, toc.tracks.size)
 
         // All tracks and lead-out should be offset by 150
         assertEquals(150, toc.tracks[0].lba)
@@ -131,10 +132,11 @@ class ReadTocCommandTest {
     fun `test standard LBA not modified`() {
         setupMockTransfer(150)
 
-        val toc = readTocCommand.execute(3)
+        val result = readTocCommand.execute(3)
 
-        assertNotNull(toc)
-        assertEquals(3, toc!!.tracks.size)
+        assertNotNull(result)
+        val toc = result!!.first
+        assertEquals(3, toc.tracks.size)
 
         // Standard drive, no offset applied
         assertEquals(150, toc.tracks[0].lba)
@@ -147,10 +149,11 @@ class ReadTocCommandTest {
     fun `test unexpected LBA not modified`() {
         setupMockTransfer(75)
 
-        val toc = readTocCommand.execute(3)
+        val result = readTocCommand.execute(3)
 
-        assertNotNull(toc)
-        assertEquals(3, toc!!.tracks.size)
+        assertNotNull(result)
+        val toc = result!!.first
+        assertEquals(3, toc.tracks.size)
 
         // Unexpected drive LBA, no offset applied
         assertEquals(75, toc.tracks[0].lba)

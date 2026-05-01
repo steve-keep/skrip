@@ -12,7 +12,7 @@ class ReadTocCommand(
     private val outEndpoint: UsbEndpoint,
     private val inEndpoint: UsbEndpoint
 ) {
-    fun execute(tag: Int = 3): DiscToc? {
+    fun execute(tag: Int = 3): Pair<DiscToc, ByteArray>? {
         // CBW: 31 bytes
         val cbw = ByteArray(31)
         val buffer = ByteBuffer.wrap(cbw).order(ByteOrder.LITTLE_ENDIAN)
@@ -56,6 +56,8 @@ class ReadTocCommand(
             AppLogger.e(TAG, "Failed to read TOC data")
             return null
         }
+
+        AppLogger.d(TAG, "RAW TOC: ${tocData.take(transferred).joinToString(" ") { "%02x".format(it) }}")
 
         // Read CSW (Command Status Wrapper)
         val csw = ByteArray(13)
@@ -109,7 +111,7 @@ class ReadTocCommand(
         val pregapOffset = if (entries.firstOrNull()?.lba == 0) 150 else 0
         val normalisedEntries = if (pregapOffset == 0) entries else entries.map { it.copy(lba = it.lba + pregapOffset) }
         val normalisedLeadOut = leadOutLba + pregapOffset
-        return DiscToc(normalisedEntries, normalisedLeadOut)
+        return Pair(DiscToc(normalisedEntries, normalisedLeadOut), tocData.copyOf(transferred))
     }
 
     companion object {
