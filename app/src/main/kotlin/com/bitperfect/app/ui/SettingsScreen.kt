@@ -276,8 +276,8 @@ fun SettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                val toc = (driveStatus as? DriveStatus.DiscReady)?.toc
-                                sendDebugInfo(context, driveInfo, toc)
+                                val discReady = driveStatus as? DriveStatus.DiscReady
+                                sendDebugInfo(context, driveInfo, discReady?.toc, discReady?.rawToc)
                             }
                             .padding(horizontal = 24.dp, vertical = 12.dp),
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
@@ -382,7 +382,7 @@ fun SettingsScreen(
     }
 }
 
-private fun sendDebugInfo(context: android.content.Context, driveInfo: DriveInfo?, toc: com.bitperfect.core.models.DiscToc?) {
+private fun sendDebugInfo(context: android.content.Context, driveInfo: DriveInfo?, toc: com.bitperfect.core.models.DiscToc?, rawToc: ByteArray?) {
     val sb = java.lang.StringBuilder()
     sb.appendLine("# BitPerfect Debug Report")
     sb.appendLine()
@@ -462,6 +462,23 @@ private fun sendDebugInfo(context: android.content.Context, driveInfo: DriveInfo
         sb.appendLine("ID: `$mbId`")
         val mbOffsets = toc.tracks.joinToString("+") { (it.lba + 150).toString() }
         sb.appendLine("Lookup URL: `https://musicbrainz.org/cdtoc/attach?toc=1+${toc.trackCount}+${toc.leadOutLba + 150}+$mbOffsets`")
+        sb.appendLine()
+    }
+
+    if (toc != null || rawToc != null) {
+        sb.appendLine("### Raw TOC")
+        if (rawToc != null) {
+            sb.appendLine("```")
+            rawToc.toList().chunked(16).forEachIndexed { index, bytes ->
+                val offset = String.format("%04x", index * 16)
+                val hexString = bytes.joinToString(" ") { String.format("%02x", it) }
+                sb.appendLine("$offset: $hexString")
+            }
+            sb.appendLine("```")
+        } else {
+            sb.appendLine("Not available")
+        }
+        sb.appendLine()
     }
 
     val file = java.io.File(context.cacheDir, "bitperfect-debug.md")
