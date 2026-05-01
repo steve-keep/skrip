@@ -520,6 +520,10 @@ class UsbDriveDetectorTest {
         managerField.isAccessible = true
         managerField.set(detector, mockUsbManager)
 
+        val transportFactoryField = UsbDriveDetector::class.java.getDeclaredField("transportFactory")
+        transportFactoryField.isAccessible = true
+        transportFactoryField.set(detector, { _: android.hardware.usb.UsbDeviceConnection -> fakeTransport })
+
         // Invoke interrogateDevice
         val interrogateMethod = UsbDriveDetector::class.java.getDeclaredMethod("interrogateDevice", android.hardware.usb.UsbDevice::class.java)
         interrogateMethod.isAccessible = true
