@@ -99,6 +99,16 @@ class MainActivity : ComponentActivity() {
             val currentTrackArtist by appViewModel.currentTrackArtist.collectAsState()
             val currentAlbumArtUri by appViewModel.currentAlbumArtUri.collectAsState()
 
+            val driveStatus by appViewModel.driveStatus.collectAsState()
+
+            LaunchedEffect(driveStatus) {
+                if (driveStatus !is com.bitperfect.app.usb.DriveStatus.NoDrive && driveStatus !is com.bitperfect.app.usb.DriveStatus.NotOptical) {
+                    window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                    window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
+            }
+
             val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
                 bottomSheetState = rememberStandardBottomSheetState(
                     initialValue = SheetValue.Hidden,
